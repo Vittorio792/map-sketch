@@ -1,0 +1,10 @@
+{
+  "name": "MapSketch",
+  "short_name": "MapSketch",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "theme_color": "#0f766e",
+  "background_color": "#0b1215",
+  "description": "Draw lines, shapes and pins with notes on a map."
+}

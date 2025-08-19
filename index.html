@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>MapSketch</title>
+<meta name="theme-color" content="#0f766e"/>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<style>
+  :root{--bg:#0b1215;--panel:#101b20;--muted:#5e7a86;--text:#eef7fb;--accent:#22c55e;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--top-offset:270px}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Inter,Arial;-webkit-tap-highlight-color:transparent}
+  header{position:sticky;top:0;z-index:1000;display:flex;justify-content:space-between;align-items:center;padding:calc(.6rem + var(--safe-top)) 1rem .6rem 1rem;border-bottom:1px solid #14343a;background:#0d171a;gap:.5rem}
+  #map{position:fixed;top:calc(var(--top-offset) + var(--safe-top));left:0;right:0;bottom:0;padding-bottom:var(--safe-bottom)}
+
+  /* Toolbar layout */
+  .toolbar{position:relative;z-index:100;display:flex;flex-wrap:wrap;gap:.6rem;padding:.6rem 1rem;border-bottom:1px solid #14343a;background:#0d171a}
+  .toolbar.hidden{display:none}
+  /* Toggle button */
+  #toggleToolbarBtn{display:none;align-items:center;gap:.4rem;background:#124a43;border:1px solid #0b4f49;color:#e9fbff;border-radius:.6rem;padding:.4rem .6rem;cursor:pointer}
+  @media (max-width:1200px){
+    #toggleToolbarBtn{display:inline-flex}
+  }
+
+  /* details-based panels */
+  details.panel{padding:.2rem .75rem;background:#101b20;border:1px solid #14343a;border-radius:.7rem;display:block;min-width:240px}
+  details.panel[open]{padding-bottom:.6rem}
+  .panel summary{display:flex;align-items:center;gap:.5rem;cursor:pointer;list-style:none;user-select:none;padding:.4rem 0;color:#a9c0c9;font-size:12px}
+  .panel summary::-webkit-details-marker{display:none}
+  .panel summary::after{content:'▾';margin-left:auto;transition:transform .2s ease}
+  details.panel[open] summary::after{transform:rotate(180deg)}
+  .panel-body{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+
+  /* Compact controls for dense sections */
+  .panel-body.compact{ gap:.4rem }
+  .panel-body.compact label{ font-size:11px }
+  .panel-body.compact input[type="text"],
+  .panel-body.compact input[type="number"],
+  .panel-body.compact select{
+    min-height:34px; padding:.45rem .6rem; font-size:13px
+  }
+  .panel-body.compact input[type="number"]{ width:56px }
+  .panel-body.compact button{
+    min-height:34px; padding:.45rem .6rem; font-size:13px
+  }
+
+  /* Secondary dropdowns inside a panel */
+  details.subpanel{
+    display:inline-block; background:#0e171b; border:1px solid #1f3940; border-radius:.5rem;
+    padding:.2rem .5rem
+  }
+  details.subpanel[open]{ padding-bottom:.4rem }
+  details.subpanel summary{
+    list-style:none; cursor:pointer; display:flex; align-items:center; gap:.4rem;
+    padding:.25rem 0; color:#a9c0c9; font-size:12px
+  }
+  details.subpanel summary::-webkit-details-marker{ display:none }
+  details.subpanel summary::after{ content:'▾'; margin-left:auto; transition:transform .2s ease }
+  details.subpanel[open] summary::after{ transform:rotate(180deg) }
+  .subbody{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center }
+
+  /* Controls */
+  label{font-size:12px;color:#a9c0c9}
+  input[type="text"],input[type="number"],select{background:#0e171b;border:1px solid #26464f;color:#eef7fb;border-radius:.6rem;padding:.6rem .7rem;min-height:40px}
+  input[type="color"]{width:42px;height:38px;border:1px solid #26464f;border-radius:.4rem;background:#0e171b}
+  input[type="range"]{accent-color:var(--accent)}
+  button{background:#124a43;border:1px solid #0b4f49;color:#e9fbff;border-radius:.6rem;padding:.6rem .8rem;cursor:pointer;min-height:40px;line-height:1.2;white-space:normal;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
+  button.secondary{background:#0e171b;border:1px solid #244148}
+  button.active{outline:2px solid #22c55e; border-color:#22c55e}
+  .badge{font-size:12px;padding:.2rem .5rem;border-radius:.5rem;background:#14343a;color:#a9d4df}
+  .coord-label{background:rgba(16,27,31,.85);border:1px solid #27444c;border-radius:.4rem;color:#d7f3ff;padding:.1rem .35rem}
+  .vertex{box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 0 8px rgba(34,197,94,.9)}
+  small.muted{color:#86a7b3}
+
+  /* Search results overlay - fixed and responsive */
+  #searchResults{position:fixed!important;left:1rem;right:1rem;max-height:min(40vh,260px);overflow:auto;border:1px solid #27444c;background:#101b20;border-radius:.6rem}
+
+  /* Leaflet popup sizing + button readability */
+  .leaflet-popup-content{min-width:260px}
+  .leaflet-popup-content button{white-space:nowrap}
+
+  /* Responsive: stack panels and full-width inputs on small screens */
+  @media (max-width:900px){
+    :root{--top-offset:120px}
+    .toolbar{display:grid;grid-template-columns:1fr;gap:.6rem}
+
+    /* Inputs still stretch full width on small screens */
+    .panel-body input[type="text"],
+    .panel-body input[type="number"],
+    .panel-body select{
+      flex:1;
+      min-width:0;
+    }
+
+    /* NEW: buttons use intrinsic width and wrap to next row if needed */
+    .panel-body button{
+      flex:0 0 auto;
+      min-width:max-content; /* keep text on one line */
+    }
+  }
+
+  /* NEW: prevent per-character wrapping; keep button text horizontal */
+  .toolbar .panel-body button{
+    white-space: nowrap;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 style="margin:0;font-size:16px">🗺️ MapSketch</h1>
+  <div style="display:flex;align-items:center;gap:.5rem">
+    <button id="toggleToolbarBtn" title="Show/Hide tools">Tools</button>
+    <div class="badge" id="offlineBadge">offline-ready</div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <details class="panel" id="panel-profile" open>
+    <summary>Profile</summary>
+    <div class="panel-body">
+      <select id="userSelect"></select>
+      <input id="newUser" type="text" placeholder="new username">
+      <button id="addUserBtn" class="secondary">Add</button>
+      <button id="deleteUserBtn" class="secondary">Delete</button>
+    </div>
+  </details>
+
+  <details class="panel" id="panel-search" open>
+    <summary>Search</summary>
+    <div class="panel-body">
+      <input id="searchBox" type="text" placeholder="Place or address" autocomplete="off" style="flex:1;min-width:180px">
+      <div id="searchResults" class="panel" style="position:absolute;z-index:1000;display:none;max-height:260px;overflow:auto;left:1rem;right:1rem;top:210px"></div>
+    </div>
+  </details>
+
+  <details class="panel" id="panel-draw" open>
+    <summary>Drawing</summary>
+    <div class="panel-body">
+      <label>Stroke</label><input id="strokeColor" type="color" value="#10b981">
+      <label>Fill</label><input id="fillColor" type="color" value="#10b981">
+      <label>Width</label><input id="lineWidth" type="range" min="1" max="12" value="3">
+      <button id="startLineBtn">Draw line</button>
+      <button id="freehandBtn" class="secondary">Freehand (line)</button>
+      <button id="freehandPolyBtn" class="secondary">Freehand (area)</button>
+      <label><input type="checkbox" id="toggleLabels"> Show lat/lon</label>
+    </div>
+  </details>
+
+  <details class="panel" id="panel-shapes" open>
+    <summary>Shapes & Pins</summary>
+    <div class="panel-body compact">
+      <label>Regular n-gon</label>
+      <input id="ngonSides" type="number" min="3" max="20" value="5" style="width:64px">
+      <button id="ngonBtn" class="secondary">Place n-gon</button>
+
+      <!-- NEW: Star options collapsed by default on small screens -->
+      <details class="subpanel" id="sub-star">
+        <summary>Star</summary>
+        <div class="subbody">
+          <label>Points</label>
+          <input id="starPoints" type="number" min="3" max="20" value="5">
+          <label>Inner</label>
+          <input id="starInner" type="range" min="0.2" max="0.9" step="0.05" value="0.5">
+          <button id="starBtn" class="secondary">Place star</button>
+        </div>
+      </details>
+
+      <!-- NEW: More tools collapsed by default on small screens -->
+      <details class="subpanel" id="sub-tools">
+        <summary>More tools</summary>
+        <div class="subbody">
+          <button id="vertexModeBtn" class="secondary" title="Delete individual points">Vertex delete</button>
+          <button id="deleteModeBtn" class="secondary" title="Tap to toggle delete mode">Delete mode</button>
+          <button id="pinModeBtn" class="secondary" title="Toggle dropping pins">Pin mode: off</button>
+          <button id="clearPinsBtn" class="secondary" title="Remove all pins">Clear pins</button>
+        </div>
+      </details>
+    </div>
+  </details>
+
+  <details class="panel" id="panel-coords" open>
+    <summary>Status</summary>
+    <div class="panel-body" id="coordsPanel">
+      <div><small class="muted">Cursor</small> <span id="cursorLat">–</span>, <span id="cursorLng">–</span></div>
+      <div><small class="muted">Center</small> <span id="centerLat">–</span>, <span id="centerLng">–</span></div>
+      <div><small class="muted">Zoom</small> <span id="zoomLv">–</span></div>
+    </div>
+  </details>
+
+  <!-- Notes panel -->
+  <details class="panel" id="panel-notes" open>
+    <summary>Notes</summary>
+    <div class="panel-body" style="flex-direction:column;align-items:stretch;gap:.4rem">
+      <div id="notesList" style="display:flex;flex-direction:column;gap:.3rem;max-height:200px;overflow:auto"></div>
+    </div>
+  </details>
+</div>
+
+<div id="map"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+/*** PWA badge ***/
+const setBadge = (off)=>document.getElementById('offlineBadge').textContent = off?'offline':'offline-ready';
+window.addEventListener('online', ()=>setBadge(false));
+window.addEventListener('offline',()=>setBadge(true));
+setBadge(!navigator.onLine);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+/*** Layout recalculation for mobile friendliness ***/
+function recalcLayout(){
+  const header = document.querySelector('header');
+  const toolbar = document.querySelector('.toolbar');
+  const h = (header?.offsetHeight||0);
+  const t = (toolbar?.offsetHeight||0);
+  const top = h + t + 8; // 8px breathing space
+  document.documentElement.style.setProperty('--top-offset', top + 'px');
+  // Reposition search dropdown
+  const sr = document.getElementById('searchResults');
+  if (sr) { sr.style.top = (top + 6) + 'px'; sr.style.left = '1rem'; sr.style.right='1rem'; }
+  // Ensure Leaflet recalculates viewport after layout shifts
+  try { if (window.MapSketch_map && window.MapSketch_map.invalidateSize) window.MapSketch_map.invalidateSize({animate:false}); } catch {}
+}
+['DOMContentLoaded','load','resize','orientationchange'].forEach(evt=>window.addEventListener(evt,recalcLayout,{passive:true}));
+
+function debounce(fn,ms){let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } }
+
+function setupPanels(){
+  // Include main panels and subpanels
+  const panels = Array.from(document.querySelectorAll('details'));
+  panels.forEach(p=>{
+    p.addEventListener('toggle', ()=>{
+      p.dataset.userTouched = '1';
+      recalcLayout();
+    });
+  });
+}
+function autoCollapsePanels(){
+  const w = window.innerWidth || document.documentElement.clientWidth;
+  const panels = {
+    profile: document.getElementById('panel-profile'),
+    search: document.getElementById('panel-search'),
+    draw: document.getElementById('panel-draw'),
+    shapes: document.getElementById('panel-shapes'),
+    coords: document.getElementById('panel-coords')
+  };
+  const anyTouched = Object.values(panels).some(p=>p && p.dataset.userTouched==='1');
+
+  // Subpanels inside Shapes
+  const subs = Array.from(document.querySelectorAll('#panel-shapes details.subpanel'));
+  const subsTouched = subs.some(s=>s.dataset.userTouched==='1');
+
+  if (!anyTouched){
+    if (w <= 1024){
+      if (panels.profile) panels.profile.open = false;
+      if (panels.search) panels.search.open = false;
+      if (panels.draw) panels.draw.open = false;
+      if (panels.shapes) panels.shapes.open = false;
+      if (panels.coords) panels.coords.open = false;
+    } else {
+      Object.values(panels).forEach(p=>{ if(p) p.open = true; });
+    }
+  }
+
+  // Collapse subpanels on small/medium; expand on large, unless user touched
+  if (!subsTouched){
+    const openSubs = w > 1200; // large screens show subpanels open by default
+    subs.forEach(s => { s.open = openSubs; });
+  }
+}
+
+function setToolbarVisibility(show, userTouched=false){
+  const tb = document.querySelector('.toolbar');
+  if (!tb) return;
+  tb.classList.toggle('hidden', !show);
+  if (userTouched){
+    document.body.dataset.toolbarTouched = '1';
+    try{ localStorage.setItem(APP_KEY + ':toolbarVisible', show ? '1' : '0'); }catch{}
+  }
+  recalcLayout();
+  try{ window.MapSketch_map && window.MapSketch_map.invalidateSize({animate:false}); }catch{}
+}
+function initToolbarVisibility(){
+  const saved = (()=>{ try{ return localStorage.getItem(APP_KEY + ':toolbarVisible'); }catch{ return null; } })();
+  const w = window.innerWidth || 0;
+  const defaultShow = w > 1024; // mobile/medium -> hidden by default
+  setToolbarVisibility(saved==null ? defaultShow : saved==='1');
+}
+
+function wireToolbarToggle(){
+  const btn = document.getElementById('toggleToolbarBtn');
+  if (!btn) return;
+  btn.addEventListener('click', ()=>{
+    const tb = document.querySelector('.toolbar');
+    const nowHidden = tb?.classList.contains('hidden');
+    setToolbarVisibility(nowHidden, true);
+  });
+}
+
+window.addEventListener('resize', debounce(()=>{
+  if (document.body.dataset.toolbarTouched==='1') { recalcLayout(); return; }
+  initToolbarVisibility();
+}, 150));
+
+/*** Storage helpers ***/
+const APP_KEY='mapsketch:v1', USERS_KEY=`${APP_KEY}:users`, USER_PREFIX=`${APP_KEY}:user:`;
+const sanitizeName = s=>(s||'').toLowerCase().trim().replace(/[^a-z0-9_\-\.]/g,'').slice(0,32);
+const getUsers = ()=>JSON.parse(localStorage.getItem(USERS_KEY)||'[]');
+const setUsers = u=>localStorage.setItem(USERS_KEY, JSON.stringify(u));
+const getUserData = u=>JSON.parse(localStorage.getItem(USER_PREFIX+u)||'{"features":[],"map":{"center":[20,0],"zoom":3}}');
+const setUserData = (u,d)=>localStorage.setItem(USER_PREFIX+u, JSON.stringify(d));
+
+/*** User UI ***/
+const userSelect=document.getElementById('userSelect'), newUser=document.getElementById('newUser');
+document.getElementById('addUserBtn').onclick=()=>{
+  const name=sanitizeName(newUser.value); if(!name) return alert('Enter a username.');
+  const users=getUsers(); if(users.includes(name)) return alert('User exists.');
+  users.push(name); setUsers(users); newUser.value=''; currentUser=name; refreshUsers(); loadForUser(currentUser);
+};
+document.getElementById('deleteUserBtn').onclick=()=>{
+  if(!confirm(`Delete profile "${currentUser}"?`)) return;
+  localStorage.removeItem(USER_PREFIX+currentUser);
+  const users=getUsers().filter(u=>u!==currentUser); setUsers(users);
+  currentUser=users[0]||'guest'; if(!users.length) setUsers([currentUser]);
+  refreshUsers(); loadForUser(currentUser);
+};
+document.getElementById('clearPinsBtn').onclick = () => {
+  if (!pinsLayer.getLayers().length) return;
+  if (!confirm('Remove all pins?')) return;
+  pinsLayer.clearLayers();
+  pinsIndex.clear();
+  saveAll();
+};
+let currentUser=null;
+function refreshUsers(){
+  const users=getUsers(); userSelect.innerHTML='';
+  if(!users.length){ users.push('guest'); setUsers(users); }
+  users.forEach(u=>{ const o=document.createElement('option'); o.value=u; o.textContent=u; userSelect.appendChild(o); });
+  if(!currentUser||!users.includes(currentUser)) currentUser=users[0];
+  userSelect.value=currentUser;
+}
+userSelect.onchange=()=>{ currentUser=userSelect.value; loadForUser(currentUser); };
+
+/*** Map ***/
+const map=L.map('map',{zoomControl:true,preferCanvas:true, scrollWheelZoom:true});
+window.MapSketch_map = map;
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OSM'}).addTo(map);
+const drawnItems = new L.FeatureGroup();
+const pinsLayer  = new L.FeatureGroup();   // NEW
+map.addLayer(pinsLayer);
+map.addLayer(drawnItems);
+const vertexLayer=L.layerGroup().addTo(map); // temp handles for vertex delete mode
+
+// Leaflet.draw toolbar
+const drawControl=new L.Control.Draw({
+  position:'topleft',
+  draw:{
+    polygon:{ allowIntersection:false, showArea:true, shapeOptions:{color:'#10b981',fillColor:'#10b981',fillOpacity:.25,weight:3}},
+    rectangle:{ shapeOptions:{color:'#10b981',fillColor:'#10b981',fillOpacity:.25,weight:3}},
+    circle:{ shapeOptions:{color:'#10b981',fillColor:'#10b981',fillOpacity:.25,weight:3}},
+    polyline:{ shapeOptions:{color:'#10b981',weight:3}},
+    circlemarker:{ radius:8, color:'#10b981', weight:3, fillColor:'#10b981', fillOpacity:.25 },
+    marker:true
+  },
+  edit:{ featureGroup:drawnItems, remove:true }
+});
+map.addControl(drawControl);
+const deleteModeBtn = document.getElementById('deleteModeBtn');
+deleteModeBtn.onclick = () => {
+  const tb = drawControl && drawControl._toolbars && drawControl._toolbars.edit;
+  if (!tb || !tb._modes || !tb._modes.remove) { alert('Delete tool not available'); return; }
+  const handler = tb._modes.remove.handler;
+  if (isDeleteMode) {
+    handler.disable();
+  } else {
+    // make sure nothing else conflicts
+    try { activeDrawer?.disable?.(); } catch {}
+    if (freehandLine) freehandBtn.click();
+    if (freehandArea) freehandPolyBtn.click();
+    if (placingNgon || placingStar) { document.body.style.cursor=''; }
+    handler.enable();
+  }
+};
+
+map.on('draw:deletestart', ()=>{ deleteModeBtn.classList.add('active'); });
+map.on('draw:deletestop',  ()=>{ deleteModeBtn.classList.remove('active'); });
+
+function disableAllDrawHandlers(){
+  try { activeDrawer?.disable?.(); } catch {}
+  const tbs = drawControl && drawControl._toolbars;
+  // stop any draw modes (polyline/polygon/etc.)
+  if (tbs && tbs.draw && tbs.draw._modes) {
+    Object.values(tbs.draw._modes).forEach(m => { try { m.handler.disable(); } catch {} });
+  }
+  // stop edit/remove if active
+  if (tbs && tbs.edit && tbs.edit._modes) {
+    ['edit','remove'].forEach(k=>{
+      const mode = tbs.edit._modes[k];
+      if (mode && mode.handler && mode.handler.enabled()) { try { mode.handler.disable(); } catch {} }
+    });
+  }
+}
+// Color/width live
+const strokeColor=document.getElementById('strokeColor'), fillColor=document.getElementById('fillColor'), lineWidth=document.getElementById('lineWidth');
+function setDrawOpts(){
+  const sc=strokeColor.value, fc=fillColor.value, lw=+lineWidth.value;
+  drawControl.setDrawingOptions({
+    polygon:{shapeOptions:{color:sc,fillColor:fc,fillOpacity:.25,weight:lw}},
+    rectangle:{shapeOptions:{color:sc,fillColor:fc,fillOpacity:.25,weight:lw}},
+    circle:{shapeOptions:{color:sc,fillColor:fc,fillOpacity:.25,weight:lw}},
+    polyline:{shapeOptions:{color:sc,weight:lw}},
+    circlemarker:{color:sc,weight:lw,fillColor:fc,fillOpacity:.25,radius:8}
+  });
+}
+[strokeColor,fillColor,lineWidth].forEach(el=>el.addEventListener('input', setDrawOpts));
+setDrawOpts();
+
+/*** GeoJSON helpers ***/
+function layerToFeature(layer){
+  const gj=layer.toGeoJSON(); const style={};
+  if(layer.options){ ['color','weight','fill','fillColor','fillOpacity','opacity','radius'].forEach(k=>{ if(layer.options[k]!==undefined) style[k]=layer.options[k]; }); }
+  const id = ensureLayerId(layer);
+  gj.properties={style, _ms:{createdAt:Date.now(), id}, note: layer._ms_note||null};
+  return gj;
+}
+function featureToLayer(feature){
+  const style=feature.properties?.style||{};
+  let layer = L.geoJSON(feature,{
+    style:()=>style,
+    pointToLayer:(f,latlng)=>{
+      if (f.properties && f.properties.style && f.properties.style.radius!==undefined) return L.circleMarker(latlng, f.properties.style||{});
+      return L.marker(latlng);
+    }
+  }).getLayers()[0];
+  if(!layer) return null;
+  if(feature.properties?._ms?.id) layer._ms_id = feature.properties._ms.id;
+  ensureLayerId(layer);
+  if(feature.properties?.note) layer._ms_note = feature.properties.note;
+  bindNotePopup(layer);
+  return layer;
+}
+
+function saveAll(){
+  if(!currentUser) return;
+  const features = [];
+  drawnItems.eachLayer(l => features.push(layerToFeature(l)));
+  pinsLayer.eachLayer(l  => features.push(layerToFeature(l)));   // include pins
+  const c = map.getCenter();
+  const data = { features, map:{ center:[c.lat,c.lng], zoom: map.getZoom() } };
+  try { setUserData(currentUser, data); } catch(e){ alert('Save failed (localStorage limit). Export your data.'); }
+}
+
+function loadForUser(user){
+  drawnItems.clearLayers();
+  pinsLayer.clearLayers();
+  const data = getUserData(user) || {};
+  (data.features||[]).forEach(f=>{
+    try{
+      const layer = featureToLayer(f);
+      if (!layer) return;
+      if (layer instanceof L.Marker && !(layer instanceof L.CircleMarker)) {
+        // Re-add as pin preserving note/id
+        const latlng = layer.getLatLng();
+        addPin(latlng, layer._ms_note||null);
+      } else {
+        drawnItems.addLayer(layer);
+        if (toggleLabels?.checked) applyLabel(layer);
+      }
+    }catch{}
+  });
+  const c = data.map?.center || [20,0], z = data.map?.zoom || 3;
+  map.setView(c, z); updateCoordPanel?.(); recalcLayout();
+  rebuildNotesList();
+}
+
+/*** Coordinates panel + labels ***/
+const cursorLat=document.getElementById('cursorLat'), cursorLng=document.getElementById('cursorLng');
+const centerLat=document.getElementById('centerLat'), centerLng=document.getElementById('centerLng'), zoomLv=document.getElementById('zoomLv');
+const toggleLabels=document.getElementById('toggleLabels');
+const fmt=n=>(Math.round(n*1e6)/1e6).toFixed(6);
+function updateCoordPanel(){ const c=map.getCenter(); centerLat.textContent=fmt(c.lat); centerLng.textContent=fmt(c.lng); zoomLv.textContent=map.getZoom(); }
+map.on('mousemove', e=>{ cursorLat.textContent=fmt(e.latlng.lat); cursorLng.textContent=fmt(e.latlng.lng); });
+map.on('moveend zoomend', updateCoordPanel);
+
+function centerOf(layer){
+  if(layer.getLatLng) return layer.getLatLng();
+  if(layer.getBounds) return layer.getBounds().getCenter();
+  return map.getCenter();
+}
+function applyLabel(layer){
+  const c=centerOf(layer); const text=`${fmt(c.lat)}, ${fmt(c.lng)}`;
+  layer.bindTooltip(text,{permanent:true,direction:'center',className:'coord-label'});
+}
+function removeLabel(layer){ layer.unbindTooltip?.(); }
+toggleLabels.onchange=()=>{ drawnItems.eachLayer(l=>toggleLabels.checked?applyLabel(l):removeLabel(l)); saveAll(); };
+
+/*** Drawing events & safe click marker ***/
+let isDrawTool=false, freehandLine=false, freehandArea=false;
+
+// Modal for note entry (responsive & mobile friendly)
+function showNoteDialog(targetLayer, kind, cb){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45)';
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#101b20;color:#eef7fb;padding:1rem;border-radius:.8rem;box-shadow:0 8px 32px #000a;z-index:9999;width:min(560px,94vw);max-height:80vh;overflow:auto';
+  box.innerHTML = `
+    <h3 style="margin:0 0 .6rem 0;font-size:1.05rem">Save ${kind||'mark'}</h3>
+    <label style="display:block;margin:.4rem 0 .2rem">Title</label>
+    <input id="ms-title" type="text" autocomplete="off" style="width:100%;padding:.65rem;border-radius:.5rem;border:1px solid #27444c;background:#0e171b;color:#eef7fb" placeholder="e.g., Trail A">
+    <label style="display:block;margin:.6rem 0 .2rem">Description</label>
+    <textarea id="ms-text" rows="6" style="width:100%;min-height:140px;max-height:50vh;padding:.55rem;border-radius:.5rem;border:1px solid #27444c;background:#0e171b;color:#eef7fb" placeholder="Notes..."></textarea>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.9rem">
+      <button id="ms-cancel" class="secondary">Cancel</button>
+      <button id="ms-save">Save</button>
+    </div>`;
+  const close = (note)=>{ try{ document.body.removeChild(box); document.body.removeChild(overlay);}catch{} cb && cb(note||null); };
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(null); });
+  document.body.appendChild(overlay); document.body.appendChild(box);
+  box.querySelector('#ms-cancel').onclick=()=>close(null);
+  box.querySelector('#ms-save').onclick=()=>{
+    const title=box.querySelector('#ms-title').value.trim();
+    const text =box.querySelector('#ms-text').value.trim();
+    close({title, text});
+  };
+}
+
+function ensureLayerId(layer){ if(!layer._ms_id){ layer._ms_id='ms_'+Math.random().toString(36).slice(2)+Date.now().toString(36);} return layer._ms_id; }
+function bindNotePopup(layer){
+  const id = ensureLayerId(layer);
+  const n = layer._ms_note||{title:'',text:''};
+  const title=(n.title||'Untitled').replace(/</g,'&lt;');
+  const text =(n.text||'').replace(/</g,'&lt;');
+  const btns = `<div style="margin-top:.4rem;display:flex;gap:.4rem;flex-wrap:wrap">
+    <button onclick="MapSketch_focusFeature('${id}')">Select</button>
+    <button class="secondary" onclick="MapSketch_editNote('${id}')">Edit note</button>
+  <button class="secondary" onclick="MapSketch_deleteNote('${id}')">🗑️ Delete note</button>
+  </div>`;
+  layer.bindPopup(`<b>${title}</b><br>${text}${btns}`);
+}
+
+function getAllLayers(){ const arr=[]; drawnItems.eachLayer(l=>arr.push(l)); pinsLayer.eachLayer(l=>arr.push(l)); return arr; }
+function getLayerById(id){ return getAllLayers().find(l=>l._ms_id===id); }
+function rebuildNotesList(){
+  const box = document.getElementById('notesList'); if(!box) return;
+  const layers = getAllLayers().filter(l=>!!l._ms_note); // show only features with a note
+  if(!layers.length){ box.innerHTML = '<small class="muted">No notes yet</small>'; return; }
+  box.innerHTML = '';
+  layers.forEach(l=>{
+    const id = ensureLayerId(l);
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:.4rem;align-items:flex-start';
+
+    const item = document.createElement('button');
+    item.className = 'secondary';
+    item.style.cssText = 'text-align:left;white-space:normal;flex:1';
+    const t = (l._ms_note?.title || 'Untitled');
+    const s = (l._ms_note?.text || '').slice(0,120);
+    item.innerHTML = `<b>${t.replace(/</g,'&lt;')}</b><br><small class="muted">${s.replace(/</g,'&lt;')}</small>`;
+    item.onclick = ()=>{ window.MapSketch_focusFeature(id); };
+
+    const del = document.createElement('button');
+    del.className = 'secondary';
+    del.title = 'Delete note';
+    del.textContent = '🗑️';
+    del.style.minWidth = '40px';
+    del.onclick = (ev)=>{ ev.stopPropagation(); window.MapSketch_deleteNote(id); };
+
+    row.appendChild(item);
+    row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+// Defer DOM work till after Leaflet finishes handling the gesture
+function __msDefer(fn){ try{ requestAnimationFrame(()=>requestAnimationFrame(fn)); }catch{ setTimeout(fn,0); } }
+window.MapSketch_focusFeature = (id)=>{
+  const l = getLayerById(id); if(!l) return;
+  let center;
+  if(l.getBounds) center = l.getBounds().getCenter();
+  else if(l.getLatLng) center = l.getLatLng();
+  else center = map.getCenter();
+  map.setView(center, Math.max(map.getZoom(), 15));
+  try{ l.openPopup && l.openPopup(); }catch{}
+};
+window.MapSketch_editNote = (id)=>{
+  const l = getLayerById(id); if(!l) return;
+  showNoteDialog(l, 'mark', (note)=>{
+    if(!note) return;
+    l._ms_note = note; bindNotePopup(l); rebuildNotesList(); saveAll(); try{ l.openPopup(); }catch{}
+  });
+};
+window.MapSketch_deleteNote = (id)=>{
+  const l = getLayerById(id); if(!l) return;
+  l._ms_note = null;
+  bindNotePopup(l);
+  rebuildNotesList(); saveAll(); try{ l.openPopup(); }catch{}
+};
+map.on(L.Draw.Event.DRAWSTART, ()=>{ isDrawTool=true; map.doubleClickZoom.disable(); });
+map.on(L.Draw.Event.DRAWSTOP,  ()=>{ isDrawTool=false; map.doubleClickZoom.enable(); });
+map.on(L.Draw.Event.CREATED, e=>{
+  const l=e.layer;
+  const lt = e.layerType;
+  // Guard: only accept finished shapes
+  if (lt === 'polyline') {
+    const pts = (l.getLatLngs && l.getLatLngs()) || [];
+    if (!Array.isArray(pts) || pts.length < 2) return;
+  }
+  if (lt === 'polygon') {
+    const rings = (l.getLatLngs && l.getLatLngs()) || [];
+    const arr = Array.isArray(rings) ? (Array.isArray(rings[0]) ? rings[0] : rings) : [];
+    if (arr.length < 3) return;
+  }
+  const sc=strokeColor.value, fc=fillColor.value, lw=+lineWidth.value;
+  if(l.setStyle) l.setStyle({color:sc, fillColor:fc, weight:lw, fillOpacity:.25});
+  // Show modal only when drawing is finalized
+  showNoteDialog(l, 'drawing', (note) => {
+    if(note) {
+      l._ms_note = note;
+    }
+    ensureLayerId(l); bindNotePopup(l);
+    drawnItems.addLayer(l);
+    if(toggleLabels.checked) applyLabel(l);
+    rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
+    if(note) l.openPopup();
+  });
+});
+map.on(L.Draw.Event.EDITED, evt=>{
+  if(toggleLabels.checked){ evt.layers.eachLayer(l=>{ removeLabel(l); applyLabel(l); }); }
+  saveAll(); if(vertexActive) buildVertexHandles();
+});
+map.on(L.Draw.Event.DELETED, (e)=>{ 
+  // layers are removed from drawnItems already; just persist and update list
+  saveAll(); rebuildNotesList(); if(vertexActive) buildVertexHandles(); 
+});
+let isEditMode = false, isDeleteMode = false;
+map.on('draw:editstart',  ()=>{ isEditMode  = true;  });
+map.on('draw:editstop',   ()=>{ isEditMode  = false; });
+map.on('draw:deletestart',()=>{ isDeleteMode = true;  });
+map.on('draw:deletestop', ()=>{ isDeleteMode = false; });
+map.on(L.Draw.Event.DELETED, ()=>{ saveAll(); if (vertexActive) buildVertexHandles(); });
+
+// Click-to-drop pin (only when nothing is drawing)
+window.copyText = async (t)=>{ try{ await navigator.clipboard.writeText(t); alert('Copied'); }catch{ alert('Copy failed'); } };
+map.on('click', (e) => {
+  if (!pinMode) return;  // your existing toggle
+  if (isDrawTool || freehandLine || freehandArea || placingNgon || placingStar || vertexActive || isEditMode || isDeleteMode) return;
+  showNoteDialog(null, 'pin', (note)=> addPin(e.latlng, note||null));
+});
+
+const pinsIndex = new Map();
+window.__deletePin = (id) => {
+  const m = pinsIndex.get(id);
+  if (!m) return;
+  pinsLayer.removeLayer(m);
+  pinsIndex.delete(id);
+  saveAll();
+};
+
+function addPin(latlng, note){
+  const m = L.marker(latlng, { keyboard:false });
+  ensureLayerId(m);
+  if(note) m._ms_note = note;
+  pinsIndex.set(m._ms_id, m);
+
+  bindNotePopup(m);
+
+  // Delete by tap when Delete mode is active
+  m.on('click', (ev) => {
+    // stop bubbling to the map (no accidental pin drops)
+    if (ev.originalEvent) L.DomEvent.stop(ev.originalEvent);
+    if (isDeleteMode) {
+      pinsLayer.removeLayer(m);
+  pinsIndex.delete(m._ms_id);
+      saveAll();
+      return;
+    }
+    // otherwise normal popup behaviour
+    m.openPopup();
+  });
+
+  // Optional: mobile long-press to delete
+  let pressTimer;
+  m.on('mousedown touchstart', () => {
+    pressTimer = setTimeout(() => {
+  window.__deletePin(m._ms_id);
+    }, 600);
+  });
+  m.on('mouseup mouseleave touchend touchcancel', () => clearTimeout(pressTimer));
+
+  pinsLayer.addLayer(m);
+  rebuildNotesList(); saveAll();
+  return m;
+}
+
+
+/*** Programmatic polyline & freehand line ***/
+const startLineBtn=document.getElementById('startLineBtn');
+let activeDrawer=null;
+startLineBtn.onclick=()=>{
+  try{ activeDrawer?.disable?.(); }catch{}
+  const options={ shapeOptions:{ color: strokeColor.value, weight: +lineWidth.value } };
+  activeDrawer=new L.Draw.Polyline(map, options);
+  activeDrawer.enable();
+  startLineBtn.classList.add('active');
+};
+
+// Mobile finish for polyline: tap near the last point to finish
+map.on('click', (e)=>{
+  if(!isDrawTool) return;
+  if(!(activeDrawer && activeDrawer instanceof L.Draw.Polyline)) return;
+  const poly = activeDrawer._poly; if(!poly || !poly.getLatLngs) return;
+  const pts = poly.getLatLngs(); if(!Array.isArray(pts) || pts.length < 2) return;
+  const last = pts[pts.length-1];
+  const p1 = map.latLngToLayerPoint(last), p2 = map.latLngToLayerPoint(e.latlng);
+  if(p1.distanceTo(p2) <= 14){ try{ activeDrawer._finishShape(); }catch{} }
+});
+
+map.on('draw:drawstart', (e)=>{
+  if(e.handler && e.handler instanceof L.Draw.Polyline){ startLineBtn.classList.add('active'); }
+});
+map.on('draw:drawstop', (e)=>{
+  startLineBtn.classList.remove('active');
+});
+
+const freehandBtn=document.getElementById('freehandBtn');
+let fhPolyline=null, fhDown=false;
+function setFHBtn(){ freehandBtn.textContent = freehandLine ? 'Stop freehand' : 'Freehand (line)'; freehandBtn.classList.toggle('active', freehandLine); }
+freehandBtn.onclick=()=>{
+  freehandLine=!freehandLine; setFHBtn();
+  if(freehandLine){ try{ activeDrawer?.disable?.(); }catch{} map.dragging.disable(); map.doubleClickZoom.disable(); if(L.Browser.mobile) map.scrollWheelZoom.disable(); }
+  else { map.dragging.enable(); map.doubleClickZoom.enable(); if(L.Browser.mobile) map.scrollWheelZoom.enable(); fhDown=false; fhPolyline=null; }
+};
+map.on('mousedown touchstart', e=>{
+  if(!freehandLine) return;
+  fhDown=true;
+  fhPolyline = L.polyline([e.latlng], { color: strokeColor.value, weight: +lineWidth.value }).addTo(drawnItems);
+});
+map.on('mousemove touchmove', e=>{
+  if(freehandLine && fhDown && fhPolyline) fhPolyline.addLatLng(e.latlng);
+});
+map.on('mouseup touchend touchcancel', ()=>{
+  if(!freehandLine) return;
+  fhDown=false;
+  if(fhPolyline && fhPolyline.getLatLngs().length >= 2) {
+    __msDefer(()=>showNoteDialog(fhPolyline, 'line', (note) => {
+      if(note) fhPolyline._ms_note = note;
+      ensureLayerId(fhPolyline); bindNotePopup(fhPolyline);
+      rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
+      if(note) fhPolyline.openPopup();
+    }));
+  } else { saveAll(); if(vertexActive) buildVertexHandles(); }
+});
+
+/*** Freehand area (polygon) ***/
+const freehandPolyBtn=document.getElementById('freehandPolyBtn');
+let fpaPoints=[], fpaDown=false;
+function setFPA(){ freehandArea ? freehandPolyBtn.classList.add('active') : freehandPolyBtn.classList.remove('active'); freehandPolyBtn.textContent = freehandArea ? 'Stop freehand (area)' : 'Freehand (area)'; }
+freehandPolyBtn.onclick=()=>{
+  freehandArea=!freehandArea; setFPA();
+  if(freehandArea){ map.dragging.disable(); map.doubleClickZoom.disable(); if(L.Browser.mobile) map.scrollWheelZoom.disable(); try{ activeDrawer?.disable?.(); }catch{} }
+  else { map.dragging.enable(); map.doubleClickZoom.enable(); if(L.Browser.mobile) map.scrollWheelZoom.enable(); fpaDown=false; fpaPoints=[]; }
+};
+map.on('mousedown touchstart', e=>{
+  if(!freehandArea) return;
+  fpaDown=true; fpaPoints=[e.latlng];
+});
+map.on('mousemove touchmove', e=>{
+  if(freehandArea && fpaDown) fpaPoints.push(e.latlng);
+});
+map.on('mouseup touchend touchcancel', ()=>{
+  if(!freehandArea) return;
+  fpaDown=false;
+  if(fpaPoints.length>=3){
+    const poly=L.polygon(fpaPoints,{color:strokeColor.value,fillColor:fillColor.value,fillOpacity:.25,weight:+lineWidth.value});
+    // Add immediately so it appears without extra UI interaction
+    drawnItems.addLayer(poly);
+    ensureLayerId(poly); bindNotePopup(poly);
+    if(toggleLabels.checked) applyLabel(poly);
+    saveAll(); if(vertexActive) buildVertexHandles();
+    __msDefer(()=>showNoteDialog(poly, 'area', (note) => {
+      if(note) poly._ms_note = note;
+      bindNotePopup(poly);
+      rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
+      if(note) poly.openPopup();
+    }));
+  } else { fpaPoints=[]; return; }
+  fpaPoints=[];
+});
+
+/*** Regular n-gon + Star ***/
+const ngonBtn=document.getElementById('ngonBtn'), starBtn=document.getElementById('starBtn');
+const ngonSidesInput=document.getElementById('ngonSides');
+const starPointsInput=document.getElementById('starPoints'), starInnerInput=document.getElementById('starInner');
+let placingNgon=false, placingStar=false, placeCenter=null, previewLayer=null;
+
+function px(p){ return map.latLngToLayerPoint(p); }
+function ll(p){ return map.layerPointToLatLng(p); }
+function ringPoints(centerLL, radiusPx, count, offsetRad=0){
+  const c=px(centerLL); const pts=[];
+  for(let i=0;i<count;i++){
+    const ang=offsetRad + i*2*Math.PI/count;
+    const pt=L.point(c.x + radiusPx*Math.cos(ang), c.y + radiusPx*Math.sin(ang));
+    pts.push(ll(pt));
+  }
+  return pts;
+}
+function starPoints(centerLL, outerPx, count, innerRatio=0.5, offsetRad=0){
+  const c=px(centerLL); const pts=[]; const innerPx=outerPx*innerRatio;
+  for(let i=0;i<count;i++){
+    const aOuter=offsetRad + i*2*Math.PI/count;
+    const aInner=aOuter + Math.PI/count;
+    pts.push(ll(L.point(c.x + outerPx*Math.cos(aOuter), c.y + outerPx*Math.sin(aOuter))));
+    pts.push(ll(L.point(c.x + innerPx*Math.cos(aInner), c.y + innerPx*Math.sin(aInner))));
+  }
+  return pts;
+}
+function startPlacement(kind){
+  disableAllDrawHandlers();                 // ⬅️ stop Leaflet.draw tools
+  if (freehandLine)  freehandBtn.click();   // turn off freehand line if on
+  if (freehandArea)  freehandPolyBtn.click(); // turn off freehand area if on
+  if (typeof pinMode !== 'undefined' && pinMode) { pinMode = false; refreshPinBtn?.(); }
+
+  placingNgon = (kind === 'ngon');
+  placingStar = (kind === 'star');
+  placeCenter = null;
+  if (previewLayer) { map.removeLayer(previewLayer); previewLayer = null; }
+  document.body.style.cursor = 'crosshair';
+}
+function stopPlacement(){
+  placingNgon = placingStar = false;
+  placeCenter = null;
+  if (previewLayer) { map.removeLayer(previewLayer); previewLayer = null; }
+  document.body.style.cursor = '';
+}
+
+ngonBtn.onclick=()=>{ stopPlacement(); startPlacement('ngon'); ngonBtn.classList.add('active'); setTimeout(()=>ngonBtn.classList.remove('active'),500); };
+starBtn.onclick=()=>{ stopPlacement(); startPlacement('star'); starBtn.classList.add('active'); setTimeout(()=>starBtn.classList.remove('active'),500); };
+
+const pinModeBtn = document.getElementById('pinModeBtn');
+let pinMode = false;
+function refreshPinBtn(){ pinModeBtn.textContent = `Pin mode: ${pinMode ? 'on' : 'off'}`; pinModeBtn.classList.toggle('active', pinMode); }
+pinModeBtn.onclick = ()=>{ pinMode = !pinMode; refreshPinBtn(); };
+refreshPinBtn();
+
+map.on('click', (e)=>{
+  if(!(placingNgon||placingStar)) return; // normal click handler earlier is guarded
+  disableAllDrawHandlers();
+  if(!placeCenter){ placeCenter=e.latlng; return; }
+  // second click -> finalize
+  const sc=strokeColor.value, fc=fillColor.value, lw=+lineWidth.value;
+  const center=placeCenter;
+  const rPx = px(center).distanceTo(px(e.latlng));
+  let coords = placingNgon
+    ? ringPoints(center, rPx, Math.max(3, +ngonSidesInput.value||5), -Math.PI/2)
+    : starPoints(center, rPx, Math.max(3, +starPointsInput.value||5), +starInnerInput.value||0.5, -Math.PI/2);
+  const poly=L.polygon(coords,{color:sc,fillColor:fc,fillOpacity:.25,weight:lw});
+  __msDefer(()=>showNoteDialog(poly, 'shape', (note) => {
+    if(note) poly._ms_note = note;
+    ensureLayerId(poly); bindNotePopup(poly);
+    drawnItems.addLayer(poly); if(toggleLabels.checked) applyLabel(poly);
+    rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
+    if(note) poly.openPopup();
+    stopPlacement();
+  }));
+});
+function onPlaceMove(e){
+  if (!(placingNgon || placingStar) || !placeCenter) return;
+  const center = placeCenter;
+  const rPx = map.latLngToLayerPoint(center).distanceTo(map.latLngToLayerPoint(e.latlng));
+  const sc = strokeColor.value, fc = fillColor.value, lw = +lineWidth.value;
+
+  const coords = placingNgon
+    ? ringPoints(center, rPx, Math.max(3, +ngonSidesInput.value || 5), -Math.PI/2)
+    : starPoints(center, rPx, Math.max(3, +starPointsInput.value || 5), +starInnerInput.value || 0.5, -Math.PI/2);
+
+  if (previewLayer) {
+    previewLayer.setLatLngs(coords);
+    previewLayer.setStyle({ color: sc, fillColor: fc, weight: lw, fillOpacity: .2 });
+  } else {
+    previewLayer = L.polygon(coords, { color: sc, fillColor: fc, weight: lw, fillOpacity: .2 }).addTo(map);
+  }
+}
+map.on('mousemove', onPlaceMove);
+map.on('touchmove', onPlaceMove);
+
+/*** Vertex delete mode (tap a handle to remove a point) ***/
+const vertexBtn=document.getElementById('vertexModeBtn');
+let vertexActive=false;
+function enableVertexMode(){ if(vertexActive) return; vertexActive=true; vertexBtn.classList.add('active'); buildVertexHandles(); }
+function disableVertexMode(){ vertexActive=false; vertexBtn.classList.remove('active'); vertexLayer.clearLayers(); }
+vertexBtn.onclick=()=>{ vertexActive ? disableVertexMode() : enableVertexMode(); };
+
+function buildVertexHandles(){
+  vertexLayer.clearLayers();
+  drawnItems.eachLayer(layer=>{
+    if(!(layer instanceof L.Polygon || layer instanceof L.Polyline)) return;
+    const isPoly = layer instanceof L.Polygon;
+    const latlngsRaw = layer.getLatLngs();
+    // Normalize to a single ring/array for simple shapes
+    const arr = isPoly ? latlngsRaw[0] : latlngsRaw;
+    if(!Array.isArray(arr)) return;
+    arr.forEach((ll,i)=>{
+      const h=L.circleMarker(ll,{radius:7, weight:2, color:'#fff', fillColor:'#22c55e', fillOpacity:0.9, className:'vertex'}).addTo(vertexLayer);
+      h.on('click', (e)=>{
+        L.DomEvent.stop(e); // stop map click event
+        if(arr.length <= (isPoly?3:2)){ // too few -> remove whole shape
+          drawnItems.removeLayer(layer);
+          vertexLayer.clearLayers();
+          rebuildNotesList();
+          saveAll();
+          return;
+        }
+        const newArr = arr.slice(0,i).concat(arr.slice(i+1));
+        if(isPoly){ layer.setLatLngs([newArr]); } else { layer.setLatLngs(newArr); }
+        layer.redraw();
+        saveAll();
+        buildVertexHandles();
+      });
+    });
+  });
+}
+
+/*** Search ***/
+const searchBox=document.getElementById('searchBox'), resultsEl=document.getElementById('searchResults');
+async function doSearch(q){
+  if(!q || q.length<2){ resultsEl.style.display='none'; resultsEl.innerHTML=''; recalcLayout(); return; }
+  try{
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.search = new URLSearchParams({ format:'json', q, limit:'8', addressdetails:'1', 'accept-language': navigator.language||'en' }).toString();
+    const res=await fetch(url,{headers:{'Accept':'application/json'}});
+    const data=await res.json();
+    resultsEl.innerHTML=''; if(!data.length){ resultsEl.style.display='none'; recalcLayout(); return; }
+    data.forEach(item=>{
+      const b=document.createElement('button');
+      b.className='secondary'; b.style.width='100%'; b.style.textAlign='left';
+      b.textContent=item.display_name;
+      b.onclick=()=>{
+        resultsEl.style.display='none';
+        searchBox.value=item.display_name;
+        const lat=+item.lat, lon=+item.lon;
+        if(item.boundingbox){
+          const bb=item.boundingbox.map(Number);
+          map.fitBounds(L.latLngBounds([bb[0],bb[2]],[bb[1],bb[3]]), {maxZoom:16});
+        } else map.setView([lat,lon], 15);
+        saveAll(); recalcLayout();
+      };
+      resultsEl.appendChild(b);
+    });
+    resultsEl.style.display='block';
+    recalcLayout();
+  }catch(e){ resultsEl.style.display='none'; recalcLayout(); }
+}
+searchBox.addEventListener('input', debounce(()=>doSearch(searchBox.value.trim()), 350));
+document.addEventListener('click', (e)=>{ if(!resultsEl.contains(e.target) && e.target!==searchBox) { resultsEl.style.display='none'; recalcLayout(); } });
+
+/*** Init ***/
+(function init(){
+  wireToolbarToggle();
+  initToolbarVisibility();
+  setupPanels();
+  autoCollapsePanels();
+  refreshUsers(); loadForUser(currentUser);
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos=>{ map.setView([pos.coords.latitude,pos.coords.longitude], 13); saveAll(); },()=>{}, {enableHighAccuracy:true,timeout:4000});
+  }
+  // Keep wheel zoom enabled on desktop; on mobile Leaflet ignores wheel anyway
+  recalcLayout();
+  // Build notes list on first load
+  rebuildNotesList();
+})();
+</script>
+</body>
+</html>
