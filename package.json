@@ -3,14 +3,28 @@
   "version": "1.0.0",
   "main": "sw.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:css": "tailwindcss -i ./css/tailwind.css -o ./tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./css/tailwind.css -o ./tailwind.css --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "dependencies": {
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.12",
+    "autoprefixer": "^10.4.21",
     "compression": "^1.8.1",
-    "express": "^5.1.0"
-  }
+    "express": "^5.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vittorio792/map-sketch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Vittorio792/map-sketch/issues"
+  },
+  "homepage": "https://github.com/Vittorio792/map-sketch#readme",
+  "description": ""
 }

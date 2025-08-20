@@ -1,977 +1,2188 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="it">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>MapSketch</title>
-<meta name="theme-color" content="#0f766e"/>
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
-<style>
-  :root{--bg:#0b1215;--panel:#101b20;--muted:#5e7a86;--text:#eef7fb;--accent:#22c55e;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--top-offset:270px}
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Inter,Arial;-webkit-tap-highlight-color:transparent}
-  header{position:sticky;top:0;z-index:1000;display:flex;justify-content:space-between;align-items:center;padding:calc(.6rem + var(--safe-top)) 1rem .6rem 1rem;border-bottom:1px solid #14343a;background:#0d171a;gap:.5rem}
-  #map{position:fixed;top:calc(var(--top-offset) + var(--safe-top));left:0;right:0;bottom:0;padding-bottom:var(--safe-bottom)}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MapSketch Pro</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Feather Icons CDN -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="tailwind.css">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#0f766e">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary-bg: #0f0f23;
+            --secondary-bg: #1a1a2e;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-red: #ef4444;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+        }
 
-  /* Toolbar layout */
-  .toolbar{position:relative;z-index:100;display:flex;flex-wrap:wrap;gap:.6rem;padding:.6rem 1rem;border-bottom:1px solid #14343a;background:#0d171a}
-  .toolbar.hidden{display:none}
-  /* Toggle button */
-  #toggleToolbarBtn{display:none;align-items:center;gap:.4rem;background:#124a43;border:1px solid #0b4f49;color:#e9fbff;border-radius:.6rem;padding:.4rem .6rem;cursor:pointer}
-  @media (max-width:1200px){
-    #toggleToolbarBtn{display:inline-flex}
-  }
+        * {
+            font-family: 'Inter', sans-serif;
+        }
 
-  /* details-based panels */
-  details.panel{padding:.2rem .75rem;background:#101b20;border:1px solid #14343a;border-radius:.7rem;display:block;min-width:240px}
-  details.panel[open]{padding-bottom:.6rem}
-  .panel summary{display:flex;align-items:center;gap:.5rem;cursor:pointer;list-style:none;user-select:none;padding:.4rem 0;color:#a9c0c9;font-size:12px}
-  .panel summary::-webkit-details-marker{display:none}
-  .panel summary::after{content:'▾';margin-left:auto;transition:transform .2s ease}
-  details.panel[open] summary::after{transform:rotate(180deg)}
-  .panel-body{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+        body {
+            background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
 
-  /* Compact controls for dense sections */
-  .panel-body.compact{ gap:.4rem }
-  .panel-body.compact label{ font-size:11px }
-  .panel-body.compact input[type="text"],
-  .panel-body.compact input[type="number"],
-  .panel-body.compact select{
-    min-height:34px; padding:.45rem .6rem; font-size:13px
-  }
-  .panel-body.compact input[type="number"]{ width:56px }
-  .panel-body.compact button{
-    min-height:34px; padding:.45rem .6rem; font-size:13px
-  }
+        .glass-effect {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
 
-  /* Secondary dropdowns inside a panel */
-  details.subpanel{
-    display:inline-block; background:#0e171b; border:1px solid #1f3940; border-radius:.5rem;
-    padding:.2rem .5rem
-  }
-  details.subpanel[open]{ padding-bottom:.4rem }
-  details.subpanel summary{
-    list-style:none; cursor:pointer; display:flex; align-items:center; gap:.4rem;
-    padding:.25rem 0; color:#a9c0c9; font-size:12px
-  }
-  details.subpanel summary::-webkit-details-marker{ display:none }
-  details.subpanel summary::after{ content:'▾'; margin-left:auto; transition:transform .2s ease }
-  details.subpanel[open] summary::after{ transform:rotate(180deg) }
-  .subbody{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center }
+        .tool-button {
+            width: 3rem; /* w-12 */
+            height: 3rem; /* h-12 */
+            border-radius: 0.75rem; /* rounded-xl */
+            display: flex; /* flex */
+            align-items: center; /* items-center */
+            justify-content: center; /* justify-center */
+            transition: all 0.3s ease; /* transition-all duration-300 */
+            cursor: pointer; /* cursor-pointer */
+            position: relative; /* relative */
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            min-width: 48px;
+            min-height: 48px;
+        }
 
-  /* Controls */
-  label{font-size:12px;color:#a9c0c9}
-  input[type="text"],input[type="number"],select{background:#0e171b;border:1px solid #26464f;color:#eef7fb;border-radius:.6rem;padding:.6rem .7rem;min-height:40px}
-  input[type="color"]{width:42px;height:38px;border:1px solid #26464f;border-radius:.4rem;background:#0e171b}
-  input[type="range"]{accent-color:var(--accent)}
-  button{background:#124a43;border:1px solid #0b4f49;color:#e9fbff;border-radius:.6rem;padding:.6rem .8rem;cursor:pointer;min-height:40px;line-height:1.2;white-space:normal;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
-  button.secondary{background:#0e171b;border:1px solid #244148}
-  button.active{outline:2px solid #22c55e; border-color:#22c55e}
-  .badge{font-size:12px;padding:.2rem .5rem;border-radius:.5rem;background:#14343a;color:#a9d4df}
-  .coord-label{background:rgba(16,27,31,.85);border:1px solid #27444c;border-radius:.4rem;color:#d7f3ff;padding:.1rem .35rem}
-  .vertex{box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 0 8px rgba(34,197,94,.9)}
-  small.muted{color:#86a7b3}
+        .tool-button:hover {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
 
-  /* Search results overlay - fixed and responsive */
-  #searchResults{position:fixed!important;left:1rem;right:1rem;max-height:min(40vh,260px);overflow:auto;border:1px solid #27444c;background:#101b20;border-radius:.6rem}
+        .tool-button.active {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
 
-  /* Leaflet popup sizing + button readability */
-  .leaflet-popup-content{min-width:260px}
-  .leaflet-popup-content button{white-space:nowrap}
+        .header-button {
+            padding: 0.5rem 0.75rem; /* px-3 py-2 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500; /* font-medium */
+            transition: all 0.3s ease; /* transition-all duration-300 */
+            display: flex; /* flex */
+            align-items: center; /* items-center */
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            min-height: 44px;
+        }
 
-  /* Responsive: stack panels and full-width inputs on small screens */
-  @media (max-width:900px){
-    :root{--top-offset:120px}
-    .toolbar{display:grid;grid-template-columns:1fr;gap:.6rem}
+        .header-button:hover {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+        }
 
-    /* Inputs still stretch full width on small screens */
-    .panel-body input[type="text"],
-    .panel-body input[type="number"],
-    .panel-body select{
-      flex:1;
-      min-width:0;
-    }
+        .header-button.active {
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            color: white;
+        }
 
-    /* NEW: buttons use intrinsic width and wrap to next row if needed */
-    .panel-body button{
-      flex:0 0 auto;
-      min-width:max-content; /* keep text on one line */
-    }
-  }
+        .input-field {
+            padding: 0.5rem 0.75rem; /* px-3 py-2 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-size: 0.875rem; /* text-sm */
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            min-height: 44px;
+        }
 
-  /* NEW: prevent per-character wrapping; keep button text horizontal */
-  .toolbar .panel-body button{
-    white-space: nowrap;
-    word-break: keep-all;
-    overflow-wrap: normal;
-  }
-</style>
+        .input-field::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* Desktop Layout */
+        .desktop-layout {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .desktop-header {
+            height: 60px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            position: relative; /* create stacking context for dropdowns */
+            z-index: 4000; /* above map and controls */
+        }
+
+        .desktop-content {
+            display: flex;
+            flex: 1;
+        }
+
+        .sidebar-left {
+            width: 80px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .sidebar-right {
+            width: 300px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid var(--glass-border);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Mobile Layout */
+        .mobile-layout {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .mobile-header {
+            height: 60px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 4000;
+        }
+
+        .mobile-content {
+            flex: 1;
+            position: relative;
+        }
+
+        .mobile-sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 280px;
+            height: calc(100vh - 140px);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 999;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .mobile-sidebar.open {
+            transform: translateX(0);
+        }
+
+        .mobile-bottom-bar {
+            height: 80px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            padding: 12px;
+            position: relative; /* ensure submenu positions above this bar */
+            z-index: 3500; /* sit above the map */
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .mobile-tool-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .mobile-tool-btn:hover, .mobile-tool-btn.active {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+        }
+
+        .mobile-tool-btn i {
+            margin-bottom: 4px;
+        }
+
+        .mobile-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            display: none;
+        }
+
+        .mobile-overlay.show {
+            display: block;
+        }
+
+        /* Draw Submenu */
+        .draw-submenu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            display: none; /* hidden by default */
+            background: var(--secondary-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px 12px 0 0;
+            padding: 16px;
+            z-index: 4500; /* above bottom bar and map */
+        }
+
+        .draw-submenu.show {
+            display: block; /* visible only when toggled */
+        }
+
+        .draw-submenu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .draw-submenu-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            text-align: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .draw-submenu-btn:hover, .draw-submenu-btn.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        /* Shape Submenu - same style as draw submenu */
+        .shape-submenu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            display: none; /* hidden by default */
+            background: var(--secondary-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px 12px 0 0;
+            padding: 16px;
+            z-index: 4500; /* above bottom bar and map */
+        }
+
+        .shape-submenu.show {
+            display: block; /* visible when toggled */
+        }
+
+        .shape-submenu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .shape-submenu-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            text-align: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .shape-submenu-btn:hover, .shape-submenu-btn.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+        .delete-note-btn {
+              border-radius: 0.375rem;
+              transition: all 0.2s ease;
+          }
+
+        .delete-note-btn:hover {
+              background: rgba(239, 68, 68, 0.2);
+          }
+
+        .note-item {
+              position: relative;
+          }
+        /* Notes Panel */
+        .notes-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Ensure hidden class actually hides the overlay regardless of cascade */
+        .notes-overlay.hidden {
+            display: none !important;
+        }
+
+        .notes-popup {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .notes-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .note-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .note-item:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .note-item-text {
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .note-item-meta {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        /* Search Results - high contrast and elevated */
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(17, 24, 39, 0.95); /* almost solid dark */
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            margin-top: 6px;
+            max-height: 260px;
+            overflow-y: auto;
+            z-index: 3000; /* above map controls */
+            box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+        }
+
+        .search-result-item {
+            padding: 14px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 14px;
+            line-height: 1.3;
+        }
+
+        .search-result-item:hover {
+            background: rgba(59, 130, 246, 0.25);
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Cursor Helper - pin it above the bottom bar and keep it visible */
+        .cursor-helper {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;           /* above the mobile bottom bar */
+  transform: translateX(-50%);
+  background: var(--accent-blue);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 5000;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+}
+.cursor-helper::after { display: none; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .desktop-layout {
+                display: none;
+            }
+            .mobile-layout {
+                display: flex;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-layout {
+                display: none;
+            }
+            .desktop-layout {
+                display: flex;
+            }
+        }
+    </style>
 </head>
 <body>
-<header>
-  <h1 style="margin:0;font-size:16px">🗺️ MapSketch</h1>
-  <div style="display:flex;align-items:center;gap:.5rem">
-    <button id="toggleToolbarBtn" title="Show/Hide tools">Tools</button>
-    <div class="badge" id="offlineBadge">offline-ready</div>
-  </div>
-</header>
+    <!-- Desktop Layout -->
+    <div class="desktop-layout">
+        <!-- Desktop Header -->
+        <header class="desktop-header">
+            <!-- Logo and Brand -->
+            <div class="flex items-center space-x-4">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                    <i data-feather="layers" class="w-5 h-5 text-white"></i>
+                </div>
+                <h1 class="text-xl font-bold text-white">MapSketch Pro</h1>
+            </div>
 
-<div class="toolbar">
-  <details class="panel" id="panel-profile" open>
-    <summary>Profile</summary>
-    <div class="panel-body">
-      <select id="userSelect"></select>
-      <input id="newUser" type="text" placeholder="new username">
-      <button id="addUserBtn" class="secondary">Add</button>
-      <button id="deleteUserBtn" class="secondary">Delete</button>
-    </div>
-  </details>
+            <!-- Center Controls -->
+            <div class="flex items-center space-x-4">
+                <!-- Search -->
+                <div class="relative">
+                    <i data-feather="search" class="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" placeholder="Search places..." class="input-field pl-10 w-64" id="searchInput">
+                    <div id="searchResults" class="search-results hidden"></div>
+                </div>
 
-  <details class="panel" id="panel-search" open>
-    <summary>Search</summary>
-    <div class="panel-body">
-      <input id="searchBox" type="text" placeholder="Place or address" autocomplete="off" style="flex:1;min-width:180px">
-      <div id="searchResults" class="panel" style="position:absolute;z-index:1000;display:none;max-height:260px;overflow:auto;left:1rem;right:1rem;top:210px"></div>
-    </div>
-  </details>
+                <!-- Coordinates Display -->
+                <div class="text-xs font-mono text-gray-400">
+                    <span id="coordsDisplay">Lat: 0.00000, Lng: 0.00000, Zoom: 3</span>
+                </div>
 
-  <details class="panel" id="panel-draw" open>
-    <summary>Drawing</summary>
-    <div class="panel-body">
-      <label>Stroke</label><input id="strokeColor" type="color" value="#10b981">
-      <label>Fill</label><input id="fillColor" type="color" value="#10b981">
-      <label>Width</label><input id="lineWidth" type="range" min="1" max="12" value="3">
-      <button id="startLineBtn">Draw line</button>
-      <button id="freehandBtn" class="secondary">Freehand (line)</button>
-      <button id="freehandPolyBtn" class="secondary">Freehand (area)</button>
-      <label><input type="checkbox" id="toggleLabels"> Show lat/lon</label>
-    </div>
-  </details>
+                <!-- Color Controls -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-xs text-gray-400">Stroke</label>
+                    <input type="color" value="#3b82f6" class="w-8 h-8 rounded border-0" id="strokeColor">
+                    <label class="text-xs text-gray-400 ml-2">Fill</label>
+                    <input type="color" value="#10b981" class="w-8 h-8 rounded border-0" id="fillColor">
+                </div>
+            </div>
 
-  <details class="panel" id="panel-shapes" open>
-    <summary>Shapes & Pins</summary>
-    <div class="panel-body compact">
-      <label>Regular n-gon</label>
-      <input id="ngonSides" type="number" min="3" max="20" value="5" style="width:64px">
-      <button id="ngonBtn" class="secondary">Place n-gon</button>
+            <!-- Right Controls -->
+            <div class="flex items-center space-x-3">
+                <button class="header-button" id="pinModeBtn">
+                    <i data-feather="map-pin" class="w-4 h-4 mr-2"></i>
+                    Pin Mode: OFF
+                </button>
+                <button class="header-button" id="saveBtn">
+                    <i data-feather="save" class="w-4 h-4 mr-2"></i>
+                    Save
+                </button>
+                <button class="header-button" id="clearBtn">
+                    <i data-feather="trash-2" class="w-4 h-4 mr-2"></i>
+                    Clear
+                </button>
+                <button class="header-button" id="notesBtn">
+                    <i data-feather="edit-3" class="w-4 h-4 mr-2"></i>
+                    Notes
+                </button>
+            </div>
+        </header>
 
-      <!-- NEW: Star options collapsed by default on small screens -->
-      <details class="subpanel" id="sub-star">
-        <summary>Star</summary>
-        <div class="subbody">
-          <label>Points</label>
-          <input id="starPoints" type="number" min="3" max="20" value="5">
-          <label>Inner</label>
-          <input id="starInner" type="range" min="0.2" max="0.9" step="0.05" value="0.5">
-          <button id="starBtn" class="secondary">Place star</button>
+        <!-- Desktop Content -->
+        <div class="desktop-content">
+            <!-- Left Sidebar -->
+            <div class="sidebar-left">
+                <div class="tool-button" id="drawLineBtn" title="Draw Line">
+                    <i data-feather="minus"></i>
+                </div>
+                <div class="tool-button" id="freehandLineBtn" title="Freehand Line">
+                    <i data-feather="edit-2"></i>
+                </div>
+                <div class="tool-button" id="freehandAreaBtn" title="Freehand Area">
+                    <i data-feather="edit"></i>
+                </div>
+                <div class="tool-button" id="polygonBtn" title="Polygon">
+                    <i data-feather="hexagon"></i>
+                </div>
+                <div class="tool-button" id="starBtn" title="Star">
+                    <i data-feather="star"></i>
+                </div>
+                <div class="tool-button" id="circleBtn" title="Circle">
+                    <i data-feather="circle"></i>
+                </div>
+                <div class="w-8 h-px bg-gray-600 my-2"></div>
+                <div class="tool-button" id="deleteBtn" title="Delete">
+                    <i data-feather="trash"></i>
+                </div>
+                <div class="tool-button" id="vertexDeleteBtn" title="Vertex Delete">
+                    <i data-feather="minus-circle"></i>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="sidebar-right">
+                <h3 class="text-lg font-semibold text-white mb-4">Map View</h3>
+                
+                <!-- Street/Satellite View Switcher -->
+                <div class="mb-6">
+                    <button class="w-full p-3 rounded-lg text-left transition-all duration-300 mb-2 flex items-center bg-glass-bg border border-glass-border text-white hover:bg-blue-500/20 active" id="streetViewBtn">
+                        <i data-feather="map" class="w-5 h-5 mr-3"></i>
+                        <div>
+                            <div class="font-medium">Street View</div>
+                            <div class="text-xs opacity-70">Standard map view</div>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full p-3 rounded-lg text-left transition-all duration-300 mb-2 flex items-center bg-glass-bg border border-glass-border text-white hover:bg-blue-500/20" id="satelliteViewBtn">
+                        <i data-feather="globe" class="w-5 h-5 mr-3"></i>
+                        <div>
+                            <div class="font-medium">Satellite View</div>
+                            <div class="text-xs opacity-70">Aerial imagery</div>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Drawing Controls -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-3">Drawing Controls</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">Line Width</label>
+                            <input type="range" min="1" max="10" value="3" class="w-full" id="lineWidthSlider">
+                            <span class="text-xs text-gray-400" id="lineWidthValue">3px</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Labels -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-3">Labels</h4>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" placeholder="Add label..." class="input-field flex-1" id="labelInput">
+                        <button class="header-button" id="addLabelBtn">
+                            <i data-feather="plus" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Saved Notes -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-3">Saved Notes</h4>
+                    <div id="savedNotesList" class="space-y-2 max-h-40 overflow-y-auto">
+                        <!-- Notes will be populated here -->
+                    </div>
+                </div>
+
+                <!-- User Management -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-400 mb-3">Users</h4>
+                    <select class="input-field w-full mb-2" id="userSelect">
+                        <option>guest</option>
+                    </select>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" placeholder="New user" class="input-field flex-1" id="newUserInput">
+                        <button class="header-button" id="addUserBtn">
+                            <i data-feather="plus" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-      </details>
+    </div>
 
-      <!-- NEW: More tools collapsed by default on small screens -->
-      <details class="subpanel" id="sub-tools">
-        <summary>More tools</summary>
-        <div class="subbody">
-          <button id="vertexModeBtn" class="secondary" title="Delete individual points">Vertex delete</button>
-          <button id="deleteModeBtn" class="secondary" title="Tap to toggle delete mode">Delete mode</button>
-          <button id="pinModeBtn" class="secondary" title="Toggle dropping pins">Pin mode: off</button>
-          <button id="clearPinsBtn" class="secondary" title="Remove all pins">Clear pins</button>
+    <!-- Mobile Layout -->
+    <div class="mobile-layout">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <div class="flex items-center space-x-3">
+                <button id="mobileMenuBtn" class="tool-button">
+                    <i data-feather="menu"></i>
+                </button>
+                <div class="w-6 h-6 rounded bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                    <i data-feather="layers" class="w-4 h-4 text-white"></i>
+                </div>
+                <span class="text-sm font-bold text-white">MapSketch Pro</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="mobileSearchBtn" class="tool-button">
+                    <i data-feather="search"></i>
+                </button>
+                <button id="mobileNotesBtn" class="tool-button">
+                    <i data-feather="edit-3"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Mobile Content -->
+        <div class="mobile-content">
+            <div id="map"></div>
         </div>
-      </details>
+
+        <!-- Mobile Sidebar -->
+        <div class="mobile-sidebar" id="mobileSidebar">
+            <h3 class="text-lg font-semibold text-white mb-6">Tools & Settings</h3>
+            
+            <!-- Search -->
+            <div class="mb-6">
+                <div class="relative">
+                    <i data-feather="search" class="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" placeholder="Search places..." class="input-field pl-10 w-full" id="mobileSearchInput">
+                    <div id="mobileSearchResults" class="search-results hidden"></div>
+                </div>
+            </div>
+
+            <!-- Drawing Tools -->
+            <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-400 mb-3">Drawing Tools</h4>
+                <div class="space-y-2">
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileDrawLineBtn">
+                        <i data-feather="minus" class="w-5 h-5"></i>
+                        <span>Draw Line</span>
+                    </button>
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileFreehandLineBtn">
+                        <i data-feather="edit-2" class="w-5 h-5"></i>
+                        <span>Freehand Line</span>
+                    </button>
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileFreehandAreaBtn">
+                        <i data-feather="edit" class="w-5 h-5"></i>
+                        <span>Freehand Area</span>
+                    </button>
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobilePolygonBtn">
+                        <i data-feather="hexagon" class="w-5 h-5"></i>
+                        <span>Polygon</span>
+                    </button>
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileStarBtn">
+                        <i data-feather="star" class="w-5 h-5"></i>
+                        <span>Star</span>
+                    </button>
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileCircleBtn">
+                        <i data-feather="circle" class="w-5 h-5"></i>
+                        <span>Circle</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Map View -->
+            <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-400 mb-3">Map View</h4>
+                <button class="w-full p-3 rounded-lg mb-2 bg-blue-500 text-white" id="mobileStreetViewBtn">
+                    <i data-feather="map" class="w-5 h-5 mr-2"></i>
+                    Street View
+                </button>
+                <button class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white" id="mobileSatelliteViewBtn">
+                    <i data-feather="globe" class="w-5 h-5 mr-2"></i>
+                    Satellite View
+                </button>
+            </div>
+
+            <!-- Controls -->
+            <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-400 mb-3">Controls</h4>
+                <button class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white" id="mobilePinModeBtn">
+                    <i data-feather="map-pin" class="w-5 h-5 mr-2"></i>
+                    Pin Mode: OFF
+                </button>
+                <button class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white" id="mobileSaveBtn">
+                    <i data-feather="save" class="w-5 h-5 mr-2"></i>
+                    Save
+                </button>
+                <button class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white" id="mobileClearBtn">
+                    <i data-feather="trash-2" class="w-5 h-5 mr-2"></i>
+                    Clear All
+                </button>
+            </div>
+
+            <!-- Users (Mobile) -->
+            <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-400 mb-3">Users</h4>
+                <select class="input-field w-full mb-2" id="mobileUserSelect"></select>
+                <div class="flex items-center space-x-2">
+                    <input type="text" placeholder="New user" class="input-field flex-1" id="mobileNewUserInput">
+                    <button class="header-button" id="mobileAddUserBtn">
+                        <i data-feather="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Bottom Bar -->
+        <div class="mobile-bottom-bar">
+            <div class="mobile-tool-btn" id="mobileDrawBtn">
+                <i data-feather="edit-2" class="w-5 h-5"></i>
+                <span>Draw</span>
+            </div>
+            <div class="mobile-tool-btn" id="mobileShapeBtn">
+                <i data-feather="hexagon" class="w-5 h-5"></i>
+                <span>Shape</span>
+            </div>
+            <div class="mobile-tool-btn" id="mobileDeleteBtn">
+                <i data-feather="trash" class="w-5 h-5"></i>
+                <span>Delete</span>
+            </div>
+            <div class="mobile-tool-btn" id="mobileSaveBottomBtn">
+                <i data-feather="save" class="w-5 h-5"></i>
+                <span>Save</span>
+            </div>
+            <div class="mobile-tool-btn" id="mobileNotesBottomBtn">
+                <i data-feather="edit-3" class="w-5 h-5"></i>
+                <span>Notes</span>
+            </div>
+
+            <!-- Draw Submenu -->
+            <div class="draw-submenu" id="drawSubmenu">
+                <div class="draw-submenu-grid">
+                    <div class="draw-submenu-btn" data-tool="drawLine">
+                        <i data-feather="minus" class="w-4 h-4 mb-1"></i>
+                        <div>Multi Line</div>
+                    </div>
+                    <div class="draw-submenu-btn" data-tool="freehandLine">
+                        <i data-feather="edit-2" class="w-4 h-4 mb-1"></i>
+                        <div>Hand Draw</div>
+                    </div>
+                    <div class="draw-submenu-btn" data-tool="freehandArea">
+                        <i data-feather="edit" class="w-4 h-4 mb-1"></i>
+                        <div>Hand Area</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shape Submenu -->
+            <div class="shape-submenu" id="shapeSubmenu">
+                <div class="shape-submenu-grid">
+                    <div class="shape-submenu-btn" data-tool="polygon">
+                        <i data-feather="hexagon" class="w-4 h-4 mb-1"></i>
+                        <div>Polygon</div>
+                    </div>
+                    <div class="shape-submenu-btn" data-tool="star">
+                        <i data-feather="star" class="w-4 h-4 mb-1"></i>
+                        <div>Star</div>
+                    </div>
+                    <div class="shape-submenu-btn" data-tool="circle">
+                        <i data-feather="circle" class="w-4 h-4 mb-1"></i>
+                        <div>Circle</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Overlay -->
+        <div class="mobile-overlay" id="mobileOverlay"></div>
     </div>
-  </details>
 
-  <details class="panel" id="panel-coords" open>
-    <summary>Status</summary>
-    <div class="panel-body" id="coordsPanel">
-      <div><small class="muted">Cursor</small> <span id="cursorLat">–</span>, <span id="cursorLng">–</span></div>
-      <div><small class="muted">Center</small> <span id="centerLat">–</span>, <span id="centerLng">–</span></div>
-      <div><small class="muted">Zoom</small> <span id="zoomLv">–</span></div>
+    <!-- Notes Overlay -->
+    <div id="notesOverlay" class="notes-overlay hidden">
+        <div class="notes-popup">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-white flex items-center">
+                    <i data-feather="edit-3" class="w-5 h-5 mr-2"></i>
+                    Notes Manager
+                </h3>
+                <button id="closeNotesBtn" class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/10">
+                    <i data-feather="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Saved Notes List -->
+            <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-400 mb-3">Saved Notes</h4>
+                <div id="notesListContainer" class="notes-list">
+                    <!-- Notes will be populated here -->
+                </div>
+            </div>
+
+            <!-- Add New Note -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-400 mb-3">Add New Note</h4>
+                <textarea placeholder="Add your notes here..." class="input-field w-full h-32 resize-none mb-4" id="notesTextarea"></textarea>
+                <div class="flex justify-end space-x-2">
+                    <button class="header-button" id="cancelNotesBtn">
+                        <i data-feather="x" class="w-4 h-4 mr-2"></i>
+                        Cancel
+                    </button>
+                    <button class="header-button bg-blue-500 hover:bg-blue-600" id="saveNotesBtn">
+                        <i data-feather="save" class="w-4 h-4 mr-2"></i>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-  </details>
 
-  <!-- Notes panel -->
-  <details class="panel" id="panel-notes" open>
-    <summary>Notes</summary>
-    <div class="panel-body" style="flex-direction:column;align-items:stretch;gap:.4rem">
-      <div id="notesList" style="display:flex;flex-direction:column;gap:.3rem;max-height:200px;overflow:auto"></div>
+    <!-- Cursor Helper -->
+    <div id="cursorHelper" class="cursor-helper hidden">
+        Double-click to finish line
     </div>
-  </details>
-</div>
 
-<div id="map"></div>
+    <script>
+        // Initialize Feather Icons
+        feather.replace();
 
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-<script>
-/*** PWA badge ***/
-const setBadge = (off)=>document.getElementById('offlineBadge').textContent = off?'offline':'offline-ready';
-window.addEventListener('online', ()=>setBadge(false));
-window.addEventListener('offline',()=>setBadge(true));
-setBadge(!navigator.onLine);
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+        // Ensure only one visible #map exists (desktop or mobile) before initializing Leaflet
+        (function ensureSingleMapContainer(){
+            const maps = Array.from(document.querySelectorAll('#map'));
+            if (maps.length <= 1) return;
+            // keep the visible one (offsetParent != null), remove the others
+            const visible = maps.find(el => el.offsetParent !== null) || maps[0];
+            maps.forEach(el => { if (el !== visible && el.parentNode) el.parentNode.removeChild(el); });
+        })();
 
-/*** Layout recalculation for mobile friendliness ***/
-function recalcLayout(){
-  const header = document.querySelector('header');
-  const toolbar = document.querySelector('.toolbar');
-  const h = (header?.offsetHeight||0);
-  const t = (toolbar?.offsetHeight||0);
-  const top = h + t + 8; // 8px breathing space
-  document.documentElement.style.setProperty('--top-offset', top + 'px');
-  // Reposition search dropdown
-  const sr = document.getElementById('searchResults');
-  if (sr) { sr.style.top = (top + 6) + 'px'; sr.style.left = '1rem'; sr.style.right='1rem'; }
-  // Ensure Leaflet recalculates viewport after layout shifts
-  try { if (window.MapSketch_map && window.MapSketch_map.invalidateSize) window.MapSketch_map.invalidateSize({animate:false}); } catch {}
-}
-['DOMContentLoaded','load','resize','orientationchange'].forEach(evt=>window.addEventListener(evt,recalcLayout,{passive:true}));
+        // Initialize map on the remaining visible container
+        let map = L.map('map').setView([51.505, -0.09], 13);
+        
+        // Default tile layer (Street View)
+        let streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Satellite layer
+        let satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri'
+        });
 
-function debounce(fn,ms){let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } }
+    // Current drawing state
+        let currentTool = null;
+        let isDrawing = false;
+        let currentPath = [];
+        let drawnItems = L.featureGroup().addTo(map);
+        let pinMode = false;
+        let deleteMode = false;
+        let vertexDeleteMode = false;
+        let currentDrawingLayer = null;
+        let vertexMarkers = [];
+    // Per-user state
+    let currentUser = 'guest';
+    let elementNotes = new Map(); // Map<msid, text>
+    let savedNotes = []; // [{id, text, timestamp, elementId(msid)}]
+        let currentElementForNotes = null;
+        let cursorHelper = document.getElementById('cursorHelper');
 
-function setupPanels(){
-  // Include main panels and subpanels
-  const panels = Array.from(document.querySelectorAll('details'));
-  panels.forEach(p=>{
-    p.addEventListener('toggle', ()=>{
-      p.dataset.userTouched = '1';
-      recalcLayout();
-    });
-  });
-}
-function autoCollapsePanels(){
-  const w = window.innerWidth || document.documentElement.clientWidth;
-  const panels = {
-    profile: document.getElementById('panel-profile'),
-    search: document.getElementById('panel-search'),
-    draw: document.getElementById('panel-draw'),
-    shapes: document.getElementById('panel-shapes'),
-    coords: document.getElementById('panel-coords')
-  };
-  const anyTouched = Object.values(panels).some(p=>p && p.dataset.userTouched==='1');
-
-  // Subpanels inside Shapes
-  const subs = Array.from(document.querySelectorAll('#panel-shapes details.subpanel'));
-  const subsTouched = subs.some(s=>s.dataset.userTouched==='1');
-
-  if (!anyTouched){
-    if (w <= 1024){
-      if (panels.profile) panels.profile.open = false;
-      if (panels.search) panels.search.open = false;
-      if (panels.draw) panels.draw.open = false;
-      if (panels.shapes) panels.shapes.open = false;
-      if (panels.coords) panels.coords.open = false;
-    } else {
-      Object.values(panels).forEach(p=>{ if(p) p.open = true; });
-    }
-  }
-
-  // Collapse subpanels on small/medium; expand on large, unless user touched
-  if (!subsTouched){
-    const openSubs = w > 1200; // large screens show subpanels open by default
-    subs.forEach(s => { s.open = openSubs; });
-  }
-}
-
-function setToolbarVisibility(show, userTouched=false){
-  const tb = document.querySelector('.toolbar');
-  if (!tb) return;
-  tb.classList.toggle('hidden', !show);
-  if (userTouched){
-    document.body.dataset.toolbarTouched = '1';
-    try{ localStorage.setItem(APP_KEY + ':toolbarVisible', show ? '1' : '0'); }catch{}
-  }
-  recalcLayout();
-  try{ window.MapSketch_map && window.MapSketch_map.invalidateSize({animate:false}); }catch{}
-}
-function initToolbarVisibility(){
-  const saved = (()=>{ try{ return localStorage.getItem(APP_KEY + ':toolbarVisible'); }catch{ return null; } })();
-  const w = window.innerWidth || 0;
-  const defaultShow = w > 1024; // mobile/medium -> hidden by default
-  setToolbarVisibility(saved==null ? defaultShow : saved==='1');
-}
-
-function wireToolbarToggle(){
-  const btn = document.getElementById('toggleToolbarBtn');
-  if (!btn) return;
-  btn.addEventListener('click', ()=>{
-    const tb = document.querySelector('.toolbar');
-    const nowHidden = tb?.classList.contains('hidden');
-    setToolbarVisibility(nowHidden, true);
-  });
-}
-
-window.addEventListener('resize', debounce(()=>{
-  if (document.body.dataset.toolbarTouched==='1') { recalcLayout(); return; }
-  initToolbarVisibility();
-}, 150));
-
-/*** Storage helpers ***/
-const APP_KEY='mapsketch:v1', USERS_KEY=`${APP_KEY}:users`, USER_PREFIX=`${APP_KEY}:user:`;
-const sanitizeName = s=>(s||'').toLowerCase().trim().replace(/[^a-z0-9_\-\.]/g,'').slice(0,32);
-const getUsers = ()=>JSON.parse(localStorage.getItem(USERS_KEY)||'[]');
-const setUsers = u=>localStorage.setItem(USERS_KEY, JSON.stringify(u));
-const getUserData = u=>JSON.parse(localStorage.getItem(USER_PREFIX+u)||'{"features":[],"map":{"center":[20,0],"zoom":3}}');
-const setUserData = (u,d)=>localStorage.setItem(USER_PREFIX+u, JSON.stringify(d));
-
-/*** User UI ***/
-const userSelect=document.getElementById('userSelect'), newUser=document.getElementById('newUser');
-document.getElementById('addUserBtn').onclick=()=>{
-  const name=sanitizeName(newUser.value); if(!name) return alert('Enter a username.');
-  const users=getUsers(); if(users.includes(name)) return alert('User exists.');
-  users.push(name); setUsers(users); newUser.value=''; currentUser=name; refreshUsers(); loadForUser(currentUser);
-};
-document.getElementById('deleteUserBtn').onclick=()=>{
-  if(!confirm(`Delete profile "${currentUser}"?`)) return;
-  localStorage.removeItem(USER_PREFIX+currentUser);
-  const users=getUsers().filter(u=>u!==currentUser); setUsers(users);
-  currentUser=users[0]||'guest'; if(!users.length) setUsers([currentUser]);
-  refreshUsers(); loadForUser(currentUser);
-};
-document.getElementById('clearPinsBtn').onclick = () => {
-  if (!pinsLayer.getLayers().length) return;
-  if (!confirm('Remove all pins?')) return;
-  pinsLayer.clearLayers();
-  pinsIndex.clear();
-  saveAll();
-};
-let currentUser=null;
-function refreshUsers(){
-  const users=getUsers(); userSelect.innerHTML='';
-  if(!users.length){ users.push('guest'); setUsers(users); }
-  users.forEach(u=>{ const o=document.createElement('option'); o.value=u; o.textContent=u; userSelect.appendChild(o); });
-  if(!currentUser||!users.includes(currentUser)) currentUser=users[0];
-  userSelect.value=currentUser;
-}
-userSelect.onchange=()=>{ currentUser=userSelect.value; loadForUser(currentUser); };
-
-/*** Map ***/
-const map=L.map('map',{zoomControl:true,preferCanvas:true, scrollWheelZoom:true});
-window.MapSketch_map = map;
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OSM'}).addTo(map);
-const drawnItems = new L.FeatureGroup();
-const pinsLayer  = new L.FeatureGroup();   // NEW
-map.addLayer(pinsLayer);
-map.addLayer(drawnItems);
-const vertexLayer=L.layerGroup().addTo(map); // temp handles for vertex delete mode
-
-// Leaflet.draw toolbar
-const drawControl=new L.Control.Draw({
-  position:'topleft',
-  draw:{
-    polygon:{ allowIntersection:false, showArea:true, shapeOptions:{color:'#10b981',fillColor:'#10b981',fillOpacity:.25,weight:3}},
-    rectangle:{ shapeOptions:{color:'#10b981',fillColor:'#10b981',fillOpacity:.25,weight:3}},
-    circle:{ shapeOptions:{color:'#10b981',fillColor:'#10b981',fillOpacity:.25,weight:3}},
-    polyline:{ shapeOptions:{color:'#10b981',weight:3}},
-    circlemarker:{ radius:8, color:'#10b981', weight:3, fillColor:'#10b981', fillOpacity:.25 },
-    marker:true
-  },
-  edit:{ featureGroup:drawnItems, remove:true }
-});
-map.addControl(drawControl);
-const deleteModeBtn = document.getElementById('deleteModeBtn');
-deleteModeBtn.onclick = () => {
-  const tb = drawControl && drawControl._toolbars && drawControl._toolbars.edit;
-  if (!tb || !tb._modes || !tb._modes.remove) { alert('Delete tool not available'); return; }
-  const handler = tb._modes.remove.handler;
-  if (isDeleteMode) {
-    handler.disable();
-  } else {
-    // make sure nothing else conflicts
-    try { activeDrawer?.disable?.(); } catch {}
-    if (freehandLine) freehandBtn.click();
-    if (freehandArea) freehandPolyBtn.click();
-    if (placingNgon || placingStar) { document.body.style.cursor=''; }
-    handler.enable();
-  }
-};
-
-map.on('draw:deletestart', ()=>{ deleteModeBtn.classList.add('active'); });
-map.on('draw:deletestop',  ()=>{ deleteModeBtn.classList.remove('active'); });
-
-function disableAllDrawHandlers(){
-  try { activeDrawer?.disable?.(); } catch {}
-  const tbs = drawControl && drawControl._toolbars;
-  // stop any draw modes (polyline/polygon/etc.)
-  if (tbs && tbs.draw && tbs.draw._modes) {
-    Object.values(tbs.draw._modes).forEach(m => { try { m.handler.disable(); } catch {} });
-  }
-  // stop edit/remove if active
-  if (tbs && tbs.edit && tbs.edit._modes) {
-    ['edit','remove'].forEach(k=>{
-      const mode = tbs.edit._modes[k];
-      if (mode && mode.handler && mode.handler.enabled()) { try { mode.handler.disable(); } catch {} }
-    });
-  }
-}
-// Color/width live
-const strokeColor=document.getElementById('strokeColor'), fillColor=document.getElementById('fillColor'), lineWidth=document.getElementById('lineWidth');
-function setDrawOpts(){
-  const sc=strokeColor.value, fc=fillColor.value, lw=+lineWidth.value;
-  drawControl.setDrawingOptions({
-    polygon:{shapeOptions:{color:sc,fillColor:fc,fillOpacity:.25,weight:lw}},
-    rectangle:{shapeOptions:{color:sc,fillColor:fc,fillOpacity:.25,weight:lw}},
-    circle:{shapeOptions:{color:sc,fillColor:fc,fillOpacity:.25,weight:lw}},
-    polyline:{shapeOptions:{color:sc,weight:lw}},
-    circlemarker:{color:sc,weight:lw,fillColor:fc,fillOpacity:.25,radius:8}
-  });
-}
-[strokeColor,fillColor,lineWidth].forEach(el=>el.addEventListener('input', setDrawOpts));
-setDrawOpts();
-
-/*** GeoJSON helpers ***/
-function layerToFeature(layer){
-  const gj=layer.toGeoJSON(); const style={};
-  if(layer.options){ ['color','weight','fill','fillColor','fillOpacity','opacity','radius'].forEach(k=>{ if(layer.options[k]!==undefined) style[k]=layer.options[k]; }); }
-  const id = ensureLayerId(layer);
-  gj.properties={style, _ms:{createdAt:Date.now(), id}, note: layer._ms_note||null};
-  return gj;
-}
-function featureToLayer(feature){
-  const style=feature.properties?.style||{};
-  let layer = L.geoJSON(feature,{
-    style:()=>style,
-    pointToLayer:(f,latlng)=>{
-      if (f.properties && f.properties.style && f.properties.style.radius!==undefined) return L.circleMarker(latlng, f.properties.style||{});
-      return L.marker(latlng);
-    }
-  }).getLayers()[0];
-  if(!layer) return null;
-  if(feature.properties?._ms?.id) layer._ms_id = feature.properties._ms.id;
-  ensureLayerId(layer);
-  if(feature.properties?.note) layer._ms_note = feature.properties.note;
-  bindNotePopup(layer);
-  return layer;
-}
-
-function saveAll(){
-  if(!currentUser) return;
-  const features = [];
-  drawnItems.eachLayer(l => features.push(layerToFeature(l)));
-  pinsLayer.eachLayer(l  => features.push(layerToFeature(l)));   // include pins
-  const c = map.getCenter();
-  const data = { features, map:{ center:[c.lat,c.lng], zoom: map.getZoom() } };
-  try { setUserData(currentUser, data); } catch(e){ alert('Save failed (localStorage limit). Export your data.'); }
-}
-
-function loadForUser(user){
-  drawnItems.clearLayers();
-  pinsLayer.clearLayers();
-  const data = getUserData(user) || {};
-  (data.features||[]).forEach(f=>{
-    try{
-      const layer = featureToLayer(f);
-      if (!layer) return;
-      if (layer instanceof L.Marker && !(layer instanceof L.CircleMarker)) {
-        // Re-add as pin preserving note/id
-        const latlng = layer.getLatLng();
-        addPin(latlng, layer._ms_note||null);
-      } else {
-        drawnItems.addLayer(layer);
-        if (toggleLabels?.checked) applyLabel(layer);
-      }
-    }catch{}
-  });
-  const c = data.map?.center || [20,0], z = data.map?.zoom || 3;
-  map.setView(c, z); updateCoordPanel?.(); recalcLayout();
-  rebuildNotesList();
-}
-
-/*** Coordinates panel + labels ***/
-const cursorLat=document.getElementById('cursorLat'), cursorLng=document.getElementById('cursorLng');
-const centerLat=document.getElementById('centerLat'), centerLng=document.getElementById('centerLng'), zoomLv=document.getElementById('zoomLv');
-const toggleLabels=document.getElementById('toggleLabels');
-const fmt=n=>(Math.round(n*1e6)/1e6).toFixed(6);
-function updateCoordPanel(){ const c=map.getCenter(); centerLat.textContent=fmt(c.lat); centerLng.textContent=fmt(c.lng); zoomLv.textContent=map.getZoom(); }
-map.on('mousemove', e=>{ cursorLat.textContent=fmt(e.latlng.lat); cursorLng.textContent=fmt(e.latlng.lng); });
-map.on('moveend zoomend', updateCoordPanel);
-
-function centerOf(layer){
-  if(layer.getLatLng) return layer.getLatLng();
-  if(layer.getBounds) return layer.getBounds().getCenter();
-  return map.getCenter();
-}
-function applyLabel(layer){
-  const c=centerOf(layer); const text=`${fmt(c.lat)}, ${fmt(c.lng)}`;
-  layer.bindTooltip(text,{permanent:true,direction:'center',className:'coord-label'});
-}
-function removeLabel(layer){ layer.unbindTooltip?.(); }
-toggleLabels.onchange=()=>{ drawnItems.eachLayer(l=>toggleLabels.checked?applyLabel(l):removeLabel(l)); saveAll(); };
-
-/*** Drawing events & safe click marker ***/
-let isDrawTool=false, freehandLine=false, freehandArea=false;
-
-// Modal for note entry (responsive & mobile friendly)
-function showNoteDialog(targetLayer, kind, cb){
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45)';
-  const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#101b20;color:#eef7fb;padding:1rem;border-radius:.8rem;box-shadow:0 8px 32px #000a;z-index:9999;width:min(560px,94vw);max-height:80vh;overflow:auto';
-  box.innerHTML = `
-    <h3 style="margin:0 0 .6rem 0;font-size:1.05rem">Save ${kind||'mark'}</h3>
-    <label style="display:block;margin:.4rem 0 .2rem">Title</label>
-    <input id="ms-title" type="text" autocomplete="off" style="width:100%;padding:.65rem;border-radius:.5rem;border:1px solid #27444c;background:#0e171b;color:#eef7fb" placeholder="e.g., Trail A">
-    <label style="display:block;margin:.6rem 0 .2rem">Description</label>
-    <textarea id="ms-text" rows="6" style="width:100%;min-height:140px;max-height:50vh;padding:.55rem;border-radius:.5rem;border:1px solid #27444c;background:#0e171b;color:#eef7fb" placeholder="Notes..."></textarea>
-    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.9rem">
-      <button id="ms-cancel" class="secondary">Cancel</button>
-      <button id="ms-save">Save</button>
-    </div>`;
-  const close = (note)=>{ try{ document.body.removeChild(box); document.body.removeChild(overlay);}catch{} cb && cb(note||null); };
-  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(null); });
-  document.body.appendChild(overlay); document.body.appendChild(box);
-  box.querySelector('#ms-cancel').onclick=()=>close(null);
-  box.querySelector('#ms-save').onclick=()=>{
-    const title=box.querySelector('#ms-title').value.trim();
-    const text =box.querySelector('#ms-text').value.trim();
-    close({title, text});
-  };
-}
-
-function ensureLayerId(layer){ if(!layer._ms_id){ layer._ms_id='ms_'+Math.random().toString(36).slice(2)+Date.now().toString(36);} return layer._ms_id; }
-function bindNotePopup(layer){
-  const id = ensureLayerId(layer);
-  const n = layer._ms_note||{title:'',text:''};
-  const title=(n.title||'Untitled').replace(/</g,'&lt;');
-  const text =(n.text||'').replace(/</g,'&lt;');
-  const btns = `<div style="margin-top:.4rem;display:flex;gap:.4rem;flex-wrap:wrap">
-    <button onclick="MapSketch_focusFeature('${id}')">Select</button>
-    <button class="secondary" onclick="MapSketch_editNote('${id}')">Edit note</button>
-  <button class="secondary" onclick="MapSketch_deleteNote('${id}')">🗑️ Delete note</button>
-  </div>`;
-  layer.bindPopup(`<b>${title}</b><br>${text}${btns}`);
-}
-
-function getAllLayers(){ const arr=[]; drawnItems.eachLayer(l=>arr.push(l)); pinsLayer.eachLayer(l=>arr.push(l)); return arr; }
-function getLayerById(id){ return getAllLayers().find(l=>l._ms_id===id); }
-function rebuildNotesList(){
-  const box = document.getElementById('notesList'); if(!box) return;
-  const layers = getAllLayers().filter(l=>!!l._ms_note); // show only features with a note
-  if(!layers.length){ box.innerHTML = '<small class="muted">No notes yet</small>'; return; }
-  box.innerHTML = '';
-  layers.forEach(l=>{
-    const id = ensureLayerId(l);
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:.4rem;align-items:flex-start';
-
-    const item = document.createElement('button');
-    item.className = 'secondary';
-    item.style.cssText = 'text-align:left;white-space:normal;flex:1';
-    const t = (l._ms_note?.title || 'Untitled');
-    const s = (l._ms_note?.text || '').slice(0,120);
-    item.innerHTML = `<b>${t.replace(/</g,'&lt;')}</b><br><small class="muted">${s.replace(/</g,'&lt;')}</small>`;
-    item.onclick = ()=>{ window.MapSketch_focusFeature(id); };
-
-    const del = document.createElement('button');
-    del.className = 'secondary';
-    del.title = 'Delete note';
-    del.textContent = '🗑️';
-    del.style.minWidth = '40px';
-    del.onclick = (ev)=>{ ev.stopPropagation(); window.MapSketch_deleteNote(id); };
-
-    row.appendChild(item);
-    row.appendChild(del);
-    box.appendChild(row);
-  });
-}
-// Defer DOM work till after Leaflet finishes handling the gesture
-function __msDefer(fn){ try{ requestAnimationFrame(()=>requestAnimationFrame(fn)); }catch{ setTimeout(fn,0); } }
-window.MapSketch_focusFeature = (id)=>{
-  const l = getLayerById(id); if(!l) return;
-  let center;
-  if(l.getBounds) center = l.getBounds().getCenter();
-  else if(l.getLatLng) center = l.getLatLng();
-  else center = map.getCenter();
-  map.setView(center, Math.max(map.getZoom(), 15));
-  try{ l.openPopup && l.openPopup(); }catch{}
-};
-window.MapSketch_editNote = (id)=>{
-  const l = getLayerById(id); if(!l) return;
-  showNoteDialog(l, 'mark', (note)=>{
-    if(!note) return;
-    l._ms_note = note; bindNotePopup(l); rebuildNotesList(); saveAll(); try{ l.openPopup(); }catch{}
-  });
-};
-window.MapSketch_deleteNote = (id)=>{
-  const l = getLayerById(id); if(!l) return;
-  l._ms_note = null;
-  bindNotePopup(l);
-  rebuildNotesList(); saveAll(); try{ l.openPopup(); }catch{}
-};
-map.on(L.Draw.Event.DRAWSTART, ()=>{ isDrawTool=true; map.doubleClickZoom.disable(); });
-map.on(L.Draw.Event.DRAWSTOP,  ()=>{ isDrawTool=false; map.doubleClickZoom.enable(); });
-map.on(L.Draw.Event.CREATED, e=>{
-  const l=e.layer;
-  const lt = e.layerType;
-  // Guard: only accept finished shapes
-  if (lt === 'polyline') {
-    const pts = (l.getLatLngs && l.getLatLngs()) || [];
-    if (!Array.isArray(pts) || pts.length < 2) return;
-  }
-  if (lt === 'polygon') {
-    const rings = (l.getLatLngs && l.getLatLngs()) || [];
-    const arr = Array.isArray(rings) ? (Array.isArray(rings[0]) ? rings[0] : rings) : [];
-    if (arr.length < 3) return;
-  }
-  const sc=strokeColor.value, fc=fillColor.value, lw=+lineWidth.value;
-  if(l.setStyle) l.setStyle({color:sc, fillColor:fc, weight:lw, fillOpacity:.25});
-  // Show modal only when drawing is finalized
-  showNoteDialog(l, 'drawing', (note) => {
-    if(note) {
-      l._ms_note = note;
-    }
-    ensureLayerId(l); bindNotePopup(l);
-    drawnItems.addLayer(l);
-    if(toggleLabels.checked) applyLabel(l);
-    rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
-    if(note) l.openPopup();
-  });
-});
-map.on(L.Draw.Event.EDITED, evt=>{
-  if(toggleLabels.checked){ evt.layers.eachLayer(l=>{ removeLabel(l); applyLabel(l); }); }
-  saveAll(); if(vertexActive) buildVertexHandles();
-});
-map.on(L.Draw.Event.DELETED, (e)=>{ 
-  // layers are removed from drawnItems already; just persist and update list
-  saveAll(); rebuildNotesList(); if(vertexActive) buildVertexHandles(); 
-});
-let isEditMode = false, isDeleteMode = false;
-map.on('draw:editstart',  ()=>{ isEditMode  = true;  });
-map.on('draw:editstop',   ()=>{ isEditMode  = false; });
-map.on('draw:deletestart',()=>{ isDeleteMode = true;  });
-map.on('draw:deletestop', ()=>{ isDeleteMode = false; });
-map.on(L.Draw.Event.DELETED, ()=>{ saveAll(); if (vertexActive) buildVertexHandles(); });
-
-// Click-to-drop pin (only when nothing is drawing)
-window.copyText = async (t)=>{ try{ await navigator.clipboard.writeText(t); alert('Copied'); }catch{ alert('Copy failed'); } };
-map.on('click', (e) => {
-  if (!pinMode) return;  // your existing toggle
-  if (isDrawTool || freehandLine || freehandArea || placingNgon || placingStar || vertexActive || isEditMode || isDeleteMode) return;
-  showNoteDialog(null, 'pin', (note)=> addPin(e.latlng, note||null));
-});
-
-const pinsIndex = new Map();
-window.__deletePin = (id) => {
-  const m = pinsIndex.get(id);
-  if (!m) return;
-  pinsLayer.removeLayer(m);
-  pinsIndex.delete(id);
-  saveAll();
-};
-
-function addPin(latlng, note){
-  const m = L.marker(latlng, { keyboard:false });
-  ensureLayerId(m);
-  if(note) m._ms_note = note;
-  pinsIndex.set(m._ms_id, m);
-
-  bindNotePopup(m);
-
-  // Delete by tap when Delete mode is active
-  m.on('click', (ev) => {
-    // stop bubbling to the map (no accidental pin drops)
-    if (ev.originalEvent) L.DomEvent.stop(ev.originalEvent);
-    if (isDeleteMode) {
-      pinsLayer.removeLayer(m);
-  pinsIndex.delete(m._ms_id);
-      saveAll();
-      return;
-    }
-    // otherwise normal popup behaviour
-    m.openPopup();
-  });
-
-  // Optional: mobile long-press to delete
-  let pressTimer;
-  m.on('mousedown touchstart', () => {
-    pressTimer = setTimeout(() => {
-  window.__deletePin(m._ms_id);
-    }, 600);
-  });
-  m.on('mouseup mouseleave touchend touchcancel', () => clearTimeout(pressTimer));
-
-  pinsLayer.addLayer(m);
-  rebuildNotesList(); saveAll();
-  return m;
-}
-
-
-/*** Programmatic polyline & freehand line ***/
-const startLineBtn=document.getElementById('startLineBtn');
-let activeDrawer=null;
-startLineBtn.onclick=()=>{
-  try{ activeDrawer?.disable?.(); }catch{}
-  const options={ shapeOptions:{ color: strokeColor.value, weight: +lineWidth.value } };
-  activeDrawer=new L.Draw.Polyline(map, options);
-  activeDrawer.enable();
-  startLineBtn.classList.add('active');
-};
-
-// Mobile finish for polyline: tap near the last point to finish
-map.on('click', (e)=>{
-  if(!isDrawTool) return;
-  if(!(activeDrawer && activeDrawer instanceof L.Draw.Polyline)) return;
-  const poly = activeDrawer._poly; if(!poly || !poly.getLatLngs) return;
-  const pts = poly.getLatLngs(); if(!Array.isArray(pts) || pts.length < 2) return;
-  const last = pts[pts.length-1];
-  const p1 = map.latLngToLayerPoint(last), p2 = map.latLngToLayerPoint(e.latlng);
-  if(p1.distanceTo(p2) <= 14){ try{ activeDrawer._finishShape(); }catch{} }
-});
-
-map.on('draw:drawstart', (e)=>{
-  if(e.handler && e.handler instanceof L.Draw.Polyline){ startLineBtn.classList.add('active'); }
-});
-map.on('draw:drawstop', (e)=>{
-  startLineBtn.classList.remove('active');
-});
-
-const freehandBtn=document.getElementById('freehandBtn');
-let fhPolyline=null, fhDown=false;
-function setFHBtn(){ freehandBtn.textContent = freehandLine ? 'Stop freehand' : 'Freehand (line)'; freehandBtn.classList.toggle('active', freehandLine); }
-freehandBtn.onclick=()=>{
-  freehandLine=!freehandLine; setFHBtn();
-  if(freehandLine){ try{ activeDrawer?.disable?.(); }catch{} map.dragging.disable(); map.doubleClickZoom.disable(); if(L.Browser.mobile) map.scrollWheelZoom.disable(); }
-  else { map.dragging.enable(); map.doubleClickZoom.enable(); if(L.Browser.mobile) map.scrollWheelZoom.enable(); fhDown=false; fhPolyline=null; }
-};
-map.on('mousedown touchstart', e=>{
-  if(!freehandLine) return;
-  fhDown=true;
-  fhPolyline = L.polyline([e.latlng], { color: strokeColor.value, weight: +lineWidth.value }).addTo(drawnItems);
-});
-map.on('mousemove touchmove', e=>{
-  if(freehandLine && fhDown && fhPolyline) fhPolyline.addLatLng(e.latlng);
-});
-map.on('mouseup touchend touchcancel', ()=>{
-  if(!freehandLine) return;
-  fhDown=false;
-  if(fhPolyline && fhPolyline.getLatLngs().length >= 2) {
-    __msDefer(()=>showNoteDialog(fhPolyline, 'line', (note) => {
-      if(note) fhPolyline._ms_note = note;
-      ensureLayerId(fhPolyline); bindNotePopup(fhPolyline);
-      rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
-      if(note) fhPolyline.openPopup();
-    }));
-  } else { saveAll(); if(vertexActive) buildVertexHandles(); }
-});
-
-/*** Freehand area (polygon) ***/
-const freehandPolyBtn=document.getElementById('freehandPolyBtn');
-let fpaPoints=[], fpaDown=false;
-function setFPA(){ freehandArea ? freehandPolyBtn.classList.add('active') : freehandPolyBtn.classList.remove('active'); freehandPolyBtn.textContent = freehandArea ? 'Stop freehand (area)' : 'Freehand (area)'; }
-freehandPolyBtn.onclick=()=>{
-  freehandArea=!freehandArea; setFPA();
-  if(freehandArea){ map.dragging.disable(); map.doubleClickZoom.disable(); if(L.Browser.mobile) map.scrollWheelZoom.disable(); try{ activeDrawer?.disable?.(); }catch{} }
-  else { map.dragging.enable(); map.doubleClickZoom.enable(); if(L.Browser.mobile) map.scrollWheelZoom.enable(); fpaDown=false; fpaPoints=[]; }
-};
-map.on('mousedown touchstart', e=>{
-  if(!freehandArea) return;
-  fpaDown=true; fpaPoints=[e.latlng];
-});
-map.on('mousemove touchmove', e=>{
-  if(freehandArea && fpaDown) fpaPoints.push(e.latlng);
-});
-map.on('mouseup touchend touchcancel', ()=>{
-  if(!freehandArea) return;
-  fpaDown=false;
-  if(fpaPoints.length>=3){
-    const poly=L.polygon(fpaPoints,{color:strokeColor.value,fillColor:fillColor.value,fillOpacity:.25,weight:+lineWidth.value});
-    // Add immediately so it appears without extra UI interaction
-    drawnItems.addLayer(poly);
-    ensureLayerId(poly); bindNotePopup(poly);
-    if(toggleLabels.checked) applyLabel(poly);
-    saveAll(); if(vertexActive) buildVertexHandles();
-    __msDefer(()=>showNoteDialog(poly, 'area', (note) => {
-      if(note) poly._ms_note = note;
-      bindNotePopup(poly);
-      rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
-      if(note) poly.openPopup();
-    }));
-  } else { fpaPoints=[]; return; }
-  fpaPoints=[];
-});
-
-/*** Regular n-gon + Star ***/
-const ngonBtn=document.getElementById('ngonBtn'), starBtn=document.getElementById('starBtn');
-const ngonSidesInput=document.getElementById('ngonSides');
-const starPointsInput=document.getElementById('starPoints'), starInnerInput=document.getElementById('starInner');
-let placingNgon=false, placingStar=false, placeCenter=null, previewLayer=null;
-
-function px(p){ return map.latLngToLayerPoint(p); }
-function ll(p){ return map.layerPointToLatLng(p); }
-function ringPoints(centerLL, radiusPx, count, offsetRad=0){
-  const c=px(centerLL); const pts=[];
-  for(let i=0;i<count;i++){
-    const ang=offsetRad + i*2*Math.PI/count;
-    const pt=L.point(c.x + radiusPx*Math.cos(ang), c.y + radiusPx*Math.sin(ang));
-    pts.push(ll(pt));
-  }
-  return pts;
-}
-function starPoints(centerLL, outerPx, count, innerRatio=0.5, offsetRad=0){
-  const c=px(centerLL); const pts=[]; const innerPx=outerPx*innerRatio;
-  for(let i=0;i<count;i++){
-    const aOuter=offsetRad + i*2*Math.PI/count;
-    const aInner=aOuter + Math.PI/count;
-    pts.push(ll(L.point(c.x + outerPx*Math.cos(aOuter), c.y + outerPx*Math.sin(aOuter))));
-    pts.push(ll(L.point(c.x + innerPx*Math.cos(aInner), c.y + innerPx*Math.sin(aInner))));
-  }
-  return pts;
-}
-function startPlacement(kind){
-  disableAllDrawHandlers();                 // ⬅️ stop Leaflet.draw tools
-  if (freehandLine)  freehandBtn.click();   // turn off freehand line if on
-  if (freehandArea)  freehandPolyBtn.click(); // turn off freehand area if on
-  if (typeof pinMode !== 'undefined' && pinMode) { pinMode = false; refreshPinBtn?.(); }
-
-  placingNgon = (kind === 'ngon');
-  placingStar = (kind === 'star');
-  placeCenter = null;
-  if (previewLayer) { map.removeLayer(previewLayer); previewLayer = null; }
-  document.body.style.cursor = 'crosshair';
-}
-function stopPlacement(){
-  placingNgon = placingStar = false;
-  placeCenter = null;
-  if (previewLayer) { map.removeLayer(previewLayer); previewLayer = null; }
-  document.body.style.cursor = '';
-}
-
-ngonBtn.onclick=()=>{ stopPlacement(); startPlacement('ngon'); ngonBtn.classList.add('active'); setTimeout(()=>ngonBtn.classList.remove('active'),500); };
-starBtn.onclick=()=>{ stopPlacement(); startPlacement('star'); starBtn.classList.add('active'); setTimeout(()=>starBtn.classList.remove('active'),500); };
-
-const pinModeBtn = document.getElementById('pinModeBtn');
-let pinMode = false;
-function refreshPinBtn(){ pinModeBtn.textContent = `Pin mode: ${pinMode ? 'on' : 'off'}`; pinModeBtn.classList.toggle('active', pinMode); }
-pinModeBtn.onclick = ()=>{ pinMode = !pinMode; refreshPinBtn(); };
-refreshPinBtn();
-
-map.on('click', (e)=>{
-  if(!(placingNgon||placingStar)) return; // normal click handler earlier is guarded
-  disableAllDrawHandlers();
-  if(!placeCenter){ placeCenter=e.latlng; return; }
-  // second click -> finalize
-  const sc=strokeColor.value, fc=fillColor.value, lw=+lineWidth.value;
-  const center=placeCenter;
-  const rPx = px(center).distanceTo(px(e.latlng));
-  let coords = placingNgon
-    ? ringPoints(center, rPx, Math.max(3, +ngonSidesInput.value||5), -Math.PI/2)
-    : starPoints(center, rPx, Math.max(3, +starPointsInput.value||5), +starInnerInput.value||0.5, -Math.PI/2);
-  const poly=L.polygon(coords,{color:sc,fillColor:fc,fillOpacity:.25,weight:lw});
-  __msDefer(()=>showNoteDialog(poly, 'shape', (note) => {
-    if(note) poly._ms_note = note;
-    ensureLayerId(poly); bindNotePopup(poly);
-    drawnItems.addLayer(poly); if(toggleLabels.checked) applyLabel(poly);
-    rebuildNotesList(); saveAll(); if(vertexActive) buildVertexHandles();
-    if(note) poly.openPopup();
-    stopPlacement();
-  }));
-});
-function onPlaceMove(e){
-  if (!(placingNgon || placingStar) || !placeCenter) return;
-  const center = placeCenter;
-  const rPx = map.latLngToLayerPoint(center).distanceTo(map.latLngToLayerPoint(e.latlng));
-  const sc = strokeColor.value, fc = fillColor.value, lw = +lineWidth.value;
-
-  const coords = placingNgon
-    ? ringPoints(center, rPx, Math.max(3, +ngonSidesInput.value || 5), -Math.PI/2)
-    : starPoints(center, rPx, Math.max(3, +starPointsInput.value || 5), +starInnerInput.value || 0.5, -Math.PI/2);
-
-  if (previewLayer) {
-    previewLayer.setLatLngs(coords);
-    previewLayer.setStyle({ color: sc, fillColor: fc, weight: lw, fillOpacity: .2 });
-  } else {
-    previewLayer = L.polygon(coords, { color: sc, fillColor: fc, weight: lw, fillOpacity: .2 }).addTo(map);
-  }
-}
-map.on('mousemove', onPlaceMove);
-map.on('touchmove', onPlaceMove);
-
-/*** Vertex delete mode (tap a handle to remove a point) ***/
-const vertexBtn=document.getElementById('vertexModeBtn');
-let vertexActive=false;
-function enableVertexMode(){ if(vertexActive) return; vertexActive=true; vertexBtn.classList.add('active'); buildVertexHandles(); }
-function disableVertexMode(){ vertexActive=false; vertexBtn.classList.remove('active'); vertexLayer.clearLayers(); }
-vertexBtn.onclick=()=>{ vertexActive ? disableVertexMode() : enableVertexMode(); };
-
-function buildVertexHandles(){
-  vertexLayer.clearLayers();
-  drawnItems.eachLayer(layer=>{
-    if(!(layer instanceof L.Polygon || layer instanceof L.Polyline)) return;
-    const isPoly = layer instanceof L.Polygon;
-    const latlngsRaw = layer.getLatLngs();
-    // Normalize to a single ring/array for simple shapes
-    const arr = isPoly ? latlngsRaw[0] : latlngsRaw;
-    if(!Array.isArray(arr)) return;
-    arr.forEach((ll,i)=>{
-      const h=L.circleMarker(ll,{radius:7, weight:2, color:'#fff', fillColor:'#22c55e', fillOpacity:0.9, className:'vertex'}).addTo(vertexLayer);
-      h.on('click', (e)=>{
-        L.DomEvent.stop(e); // stop map click event
-        if(arr.length <= (isPoly?3:2)){ // too few -> remove whole shape
-          drawnItems.removeLayer(layer);
-          vertexLayer.clearLayers();
-          rebuildNotesList();
-          saveAll();
-          return;
+        // Map interaction toggles (prevent map pan/zoom while drawing)
+        function disableMapInteractions() {
+            try {
+                map.dragging.disable();
+                map.touchZoom.disable();
+                map.doubleClickZoom.disable();
+                map.scrollWheelZoom.disable();
+                if (map.boxZoom) map.boxZoom.disable();
+                if (map.keyboard) map.keyboard.disable();
+            } catch {}
         }
-        const newArr = arr.slice(0,i).concat(arr.slice(i+1));
-        if(isPoly){ layer.setLatLngs([newArr]); } else { layer.setLatLngs(newArr); }
-        layer.redraw();
-        saveAll();
-        buildVertexHandles();
-      });
-    });
+        function enableMapInteractions() {
+            try {
+                map.dragging.enable();
+                map.touchZoom.enable();
+                map.doubleClickZoom.enable();
+                map.scrollWheelZoom.enable();
+                if (map.boxZoom) map.boxZoom.enable();
+                if (map.keyboard) map.keyboard.enable();
+            } catch {}
+        }
+
+        // Mobile state
+        let isMobile = window.innerWidth <= 768;
+        let mobileSidebarOpen = false;
+        let drawSubmenuOpen = false;
+        // add missing shape submenu state
+        let shapeSubmenuOpen = false;
+
+        // ---------- Persistence (per user) ----------
+        const STORE_KEY = 'mapsketch-store-v1';
+
+        function readStore() {
+            const raw = localStorage.getItem(STORE_KEY);
+            if (!raw) {
+                // migrate from old single-user if present
+                const oldRaw = localStorage.getItem('mapsketch-data');
+                const base = { currentUser: 'guest', users: { guest: { drawings: [], notes: [], elementNotes: [] } } };
+                if (oldRaw) {
+                    try {
+                        const old = JSON.parse(oldRaw);
+                        base.users.guest.notes = old.notes || [];
+                        base.users.guest.elementNotes = old.elementNotes || [];
+                    } catch {}
+                }
+                localStorage.setItem(STORE_KEY, JSON.stringify(base));
+                return base;
+            }
+            try { return JSON.parse(raw); } catch { return { currentUser: 'guest', users: { guest: { drawings: [], notes: [], elementNotes: [] } } }; }
+        }
+
+        function writeStore(store) {
+            localStorage.setItem(STORE_KEY, JSON.stringify(store));
+        }
+
+        function ensureUser(store, user) {
+            if (!store.users[user]) {
+                store.users[user] = { drawings: [], notes: [], elementNotes: [] };
+            }
+        }
+
+        function generateId() { return 'ms-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+        function layerToRecord(layer) {
+            // Stable id
+            if (!layer._msid) layer._msid = generateId();
+            const id = layer._msid;
+            const geo = layer.toGeoJSON();
+            let type = 'unknown';
+            if (layer instanceof L.Circle) type = 'circle';
+            else if (layer instanceof L.Polygon && !(layer instanceof L.Rectangle)) type = 'polygon';
+            else if (layer instanceof L.Polyline) type = 'polyline';
+            else if (layer instanceof L.Marker) type = 'marker';
+            const style = {
+                color: layer.options.color,
+                weight: layer.options.weight,
+                fillColor: layer.options.fillColor,
+                fillOpacity: layer.options.fillOpacity,
+                radius: (layer instanceof L.Circle) ? layer.getRadius() : undefined,
+                label: (layer.getPopup && layer.getPopup()) ? String(layer.getPopup().getContent()||'') : undefined
+            };
+            return { id, type, geo, style };
+        }
+
+        function recordToLayer(rec) {
+            let layer;
+            if (rec.type === 'circle') {
+                const ll = [rec.geo.geometry.coordinates[1], rec.geo.geometry.coordinates[0]];
+                layer = L.circle(ll, { radius: rec.style.radius || 1000, color: rec.style.color || '#3b82f6', fillColor: rec.style.fillColor || '#10b981', weight: rec.style.weight || 3, fillOpacity: rec.style.fillOpacity ?? 0.3 });
+            } else if (rec.type === 'marker') {
+                const ll = [rec.geo.geometry.coordinates[1], rec.geo.geometry.coordinates[0]];
+                layer = L.marker(ll);
+                if (rec.style && rec.style.label) layer.bindPopup(rec.style.label);
+            } else {
+                // polyline or polygon from GeoJSON
+                layer = L.geoJSON(rec.geo, {
+                    style: { color: rec.style.color || '#3b82f6', weight: rec.style.weight || 3, fillColor: rec.style.fillColor || '#10b981', fillOpacity: rec.style.fillOpacity ?? 0.3 }
+                });
+                // L.geoJSON returns a layer group; extract actual layer
+                let lyr;
+                layer.eachLayer(l => { lyr = l; });
+                layer = lyr || layer;
+            }
+            layer._msid = rec.id;
+            return layer;
+        }
+
+        function saveUserDrawing(layer) {
+            const store = readStore();
+            ensureUser(store, currentUser);
+            const rec = layerToRecord(layer);
+            // upsert
+            const list = store.users[currentUser].drawings;
+            const idx = list.findIndex(r => r.id === rec.id);
+            if (idx >= 0) list[idx] = rec; else list.push(rec);
+            writeStore(store);
+        }
+
+        function removeUserDrawing(msid) {
+            const store = readStore();
+            ensureUser(store, currentUser);
+            store.users[currentUser].drawings = store.users[currentUser].drawings.filter(r => r.id !== msid);
+            // Also clear elementNotes mapping for this layer
+            store.users[currentUser].elementNotes = (store.users[currentUser].elementNotes || []).filter(([k,_]) => k !== msid);
+            // And remove any notes pointing to this elementId
+            store.users[currentUser].notes = (store.users[currentUser].notes || []).filter(n => n.elementId !== msid);
+            writeStore(store);
+        }
+
+        function loadSavedData() {
+            const store = readStore();
+            // init user from store
+            currentUser = store.currentUser || 'guest';
+            ensureUser(store, currentUser);
+            // Reflect in userSelect if exists
+            const userSelect = document.getElementById('userSelect');
+            const mobileUserSelect = document.getElementById('mobileUserSelect');
+            if (userSelect || mobileUserSelect) {
+                if (userSelect) userSelect.innerHTML = '';
+                if (mobileUserSelect) mobileUserSelect.innerHTML = '';
+                Object.keys(store.users).forEach(u => {
+                    if (userSelect) {
+                        const opt = document.createElement('option');
+                        opt.value = u; opt.textContent = u; userSelect.appendChild(opt);
+                    }
+                    if (mobileUserSelect) {
+                        const mopt = document.createElement('option');
+                        mopt.value = u; mopt.textContent = u; mobileUserSelect.appendChild(mopt);
+                    }
+                });
+                if (userSelect) userSelect.value = currentUser;
+                if (mobileUserSelect) mobileUserSelect.value = currentUser;
+            }
+            loadUserData(currentUser);
+        }
+
+        function loadUserData(user) {
+            const store = readStore();
+            ensureUser(store, user);
+            currentUser = user;
+            // Clear map and populate
+            drawnItems.clearLayers();
+            clearVertexMarkers();
+            elementNotes = new Map(store.users[user].elementNotes || []);
+            savedNotes = (store.users[user].notes || []);
+            const drawings = store.users[user].drawings || [];
+            drawings.forEach(rec => {
+                const layer = recordToLayer(rec);
+                drawnItems.addLayer(layer);
+                addNotesClickEvent(layer);
+            });
+            updateNotesDisplay();
+            // Persist current user selection
+            store.currentUser = user; writeStore(store);
+        }
+
+        function saveData() {
+            const store = readStore();
+            ensureUser(store, currentUser);
+            // Snapshot all current drawings
+            const drawingsRecs = [];
+            drawnItems.eachLayer(layer => {
+                try { drawingsRecs.push(layerToRecord(layer)); } catch {}
+            });
+            store.users[currentUser].drawings = drawingsRecs;
+            // Persist notes mappings
+            store.users[currentUser].notes = savedNotes;
+            store.users[currentUser].elementNotes = Array.from(elementNotes.entries());
+            writeStore(store);
+        }
+
+        // Update coordinates display
+        map.on('mousemove', function(e) {
+            const coordsDisplay = document.getElementById('coordsDisplay');
+            if (coordsDisplay) {
+                coordsDisplay.textContent = 
+                    `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}, Zoom: ${map.getZoom()}`;
+            }
+        });
+
+        // Make helper always visible; just update its text
+ cursorHelper = document.getElementById('cursorHelper');
+function showCursorHelper(message) {
+  if (!cursorHelper) return;
+  cursorHelper.textContent = message || '';
+  cursorHelper.style.display = 'block';
+}
+function hideCursorHelper() {
+  // Keep it visible but clear message when no tool is active
+  showCursorHelper(''); 
+}
+
+/* Update messages per tool */
+function setActiveTool(toolName, buttonElement) {
+  // Remove active class from all tool buttons
+  document.querySelectorAll('.tool-button, .mobile-tool-btn, .draw-submenu-btn').forEach(btn => {
+    btn.classList.remove('active');
   });
-}
-
-/*** Search ***/
-const searchBox=document.getElementById('searchBox'), resultsEl=document.getElementById('searchResults');
-async function doSearch(q){
-  if(!q || q.length<2){ resultsEl.style.display='none'; resultsEl.innerHTML=''; recalcLayout(); return; }
-  try{
-    const url = new URL('https://nominatim.openstreetmap.org/search');
-    url.search = new URLSearchParams({ format:'json', q, limit:'8', addressdetails:'1', 'accept-language': navigator.language||'en' }).toString();
-    const res=await fetch(url,{headers:{'Accept':'application/json'}});
-    const data=await res.json();
-    resultsEl.innerHTML=''; if(!data.length){ resultsEl.style.display='none'; recalcLayout(); return; }
-    data.forEach(item=>{
-      const b=document.createElement('button');
-      b.className='secondary'; b.style.width='100%'; b.style.textAlign='left';
-      b.textContent=item.display_name;
-      b.onclick=()=>{
-        resultsEl.style.display='none';
-        searchBox.value=item.display_name;
-        const lat=+item.lat, lon=+item.lon;
-        if(item.boundingbox){
-          const bb=item.boundingbox.map(Number);
-          map.fitBounds(L.latLngBounds([bb[0],bb[2]],[bb[1],bb[3]]), {maxZoom:16});
-        } else map.setView([lat,lon], 15);
-        saveAll(); recalcLayout();
-      };
-      resultsEl.appendChild(b);
-    });
-    resultsEl.style.display='block';
-    recalcLayout();
-  }catch(e){ resultsEl.style.display='none'; recalcLayout(); }
-}
-searchBox.addEventListener('input', debounce(()=>doSearch(searchBox.value.trim()), 350));
-document.addEventListener('click', (e)=>{ if(!resultsEl.contains(e.target) && e.target!==searchBox) { resultsEl.style.display='none'; recalcLayout(); } });
-
-/*** Init ***/
-(function init(){
-  wireToolbarToggle();
-  initToolbarVisibility();
-  setupPanels();
-  autoCollapsePanels();
-  refreshUsers(); loadForUser(currentUser);
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos=>{ map.setView([pos.coords.latitude,pos.coords.longitude], 13); saveAll(); },()=>{}, {enableHighAccuracy:true,timeout:4000});
+  
+  // Add active class to current button
+  if (buttonElement) {
+    buttonElement.classList.add('active');
   }
-  // Keep wheel zoom enabled on desktop; on mobile Leaflet ignores wheel anyway
-  recalcLayout();
-  // Build notes list on first load
-  rebuildNotesList();
-})();
-</script>
+  
+  // Reset modes
+  deleteMode = false;
+  vertexDeleteMode = false;
+  clearVertexMarkers();
+  hideCursorHelper();
+
+  // Restore interactions when switching tools
+  try { enableMapInteractions(); } catch {}
+
+  currentTool = toolName;
+  isDrawing = false;
+  currentPath = [];
+
+  if (toolName === 'delete') {
+    deleteMode = true;
+    showCursorHelper('Tap a feature to delete');
+  } else if (toolName === 'vertexDelete') {
+    vertexDeleteMode = true;
+    showVertexMarkers();
+    showCursorHelper('Tap red dots to remove vertices');
+  } else if (toolName === 'drawLine') {
+    showCursorHelper('Tap to add points, double‑tap to finish');
+  } else if (toolName === 'polygon') {
+    showCursorHelper('Tap to add points (min 3), auto‑finish at 3');
+  } else if (toolName === 'freehandLine' || toolName === 'freehandArea') {
+    showCursorHelper('Press and drag to draw, release to finish');
+  } else if (toolName === 'star' || toolName === 'circle') {
+    showCursorHelper('Tap to place');
+  } else {
+    // No active tool
+    showCursorHelper('');
+  }
+  
+  // Close mobile sidebar and submenu after tool selection
+  if (isMobile) {
+    if (mobileSidebarOpen) toggleMobileSidebar();
+    // keep submenu visible for multi-selections; it will be explicitly closed on pick if needed
+  }
+}
+
+// Touch support: synthesize clicks for shape tools (keep preventDefault)
+let lastTouchTime = 0;
+let touchTapCount = 0;
+let lastTouchLatLng = null;
+
+/* touchstart */
+map.getContainer().addEventListener('touchstart', function(e) {
+  // Disable interactions during touch for shapes too
+  if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+    try { disableMapInteractions(); } catch {}
+    const t = e.touches[0];
+    if (t) {
+      const rect = map.getContainer().getBoundingClientRect();
+      lastTouchLatLng = map.containerPointToLatLng([t.clientX - rect.left, t.clientY - rect.top]);
+    }
+    e.preventDefault(); // we will synthesize a click on touchend
+  }
+  if (currentTool === 'freehandLine' || currentTool === 'freehandArea') {
+    touchStarted = true;
+    const touch = e.touches[0];
+    const rect = map.getContainer().getBoundingClientRect();
+    const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
+    freehandPath = [latlng];
+    try { disableMapInteractions(); } catch {}
+    e.preventDefault();
+  }
+}, { passive: false });
+
+/* touchmove (keep as-is for freehand) */
+map.getContainer().addEventListener('touchmove', function(e) {
+  if (touchStarted && (currentTool === 'freehandLine' || currentTool === 'freehandArea')) {
+    const touch = e.touches[0];
+    const rect = map.getContainer().getBoundingClientRect();
+    const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
+    freehandPath.push(latlng);
+    updateFreehandDrawing();
+    e.preventDefault();
+  } else if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+    const t = e.touches[0];
+    if (t) {
+      const rect = map.getContainer().getBoundingClientRect();
+      lastTouchLatLng = map.containerPointToLatLng([t.clientX - rect.left, t.clientY - rect.top]);
+    }
+    e.preventDefault();
+  }
+}, { passive: false });
+
+/* touchend: synthesize single/double tap for shapes */
+map.getContainer().addEventListener('touchend', function(e) {
+  if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+    const now = Date.now();
+    touchTapCount = (now - lastTouchTime < 300) ? touchTapCount + 1 : 1;
+    lastTouchTime = now;
+
+    const rect = map.getContainer().getBoundingClientRect();
+    const t = (e.changedTouches && e.changedTouches[0]) || null;
+    const latlng = t
+      ? map.containerPointToLatLng([t.clientX - rect.left, t.clientY - rect.top])
+      : (lastTouchLatLng || map.getCenter());
+
+    if (currentTool === 'drawLine' && touchTapCount === 2 && currentPath.length >= 2) {
+      // Finish multi‑segment line on double‑tap
+      finishDrawing(250);
+      touchTapCount = 0;
+    } else {
+      // Synthesize a map click for shapes/line
+      handleSingleClick({ latlng });
+    }
+
+    setTimeout(() => { try { enableMapInteractions(); } catch {} }, 50);
+    e.preventDefault();
+    return;
+  }
+
+  if (touchStarted && (currentTool === 'freehandLine' || currentTool === 'freehandArea')) {
+    touchStarted = false;
+    finishDrawing(350);
+    try { enableMapInteractions(); } catch {}
+    e.preventDefault();
+  }
+}, { passive: false });
+
+        // Enhanced drawing functionality with delay
+    function finishDrawing(delay = 250) {
+            setTimeout(() => {
+                if (currentDrawingLayer) {
+            // Ensure stable id and persist drawing for current user
+            if (!currentDrawingLayer._msid) currentDrawingLayer._msid = generateId();
+            saveUserDrawing(currentDrawingLayer);
+                    addNotesClickEvent(currentDrawingLayer);
+                    currentElementForNotes = currentDrawingLayer;
+                    showNotesPopup();
+                }
+                currentDrawingLayer = null;
+                currentPath = [];
+                isDrawing = false;
+                try { enableMapInteractions(); } catch {}
+                setActiveTool(null, null);
+            }, delay);
+        }
+
+        // Add click/touch event for notes or deletion to an element
+        function addNotesClickEvent(layer) {
+            const deleteLayer = (e) => {
+                try { if (e) { L.DomEvent.stop(e); if (e.originalEvent) { e.originalEvent.preventDefault(); e.originalEvent.stopPropagation(); } } } catch {}
+                drawnItems.removeLayer(layer);
+                const msid = layer._msid || layer._leaflet_id;
+                elementNotes.delete(msid);
+                removeUserDrawing(msid);
+                saveData();
+                updateNotesDisplay();
+            };
+
+            layer.on('click', function(e) {
+                if (deleteMode || currentTool === 'delete') {
+                    deleteLayer(e);
+                    return;
+                }
+                if (!vertexDeleteMode && (currentTool === null || currentTool === undefined)) {
+                    currentElementForNotes = layer;
+                    showNotesPopup();
+                }
+            });
+
+            // Handle mobile taps immediately
+            layer.on('touchstart', function(e) {
+                if (deleteMode || currentTool === 'delete') {
+                    deleteLayer(e);
+                }
+            });
+        }
+
+        // >>> Missing helpers (add below) >>>
+
+        // Mobile sidebar toggle
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            mobileSidebarOpen = !mobileSidebarOpen;
+            if (mobileSidebarOpen) {
+                if (sidebar) sidebar.classList.add('open');
+                if (overlay) overlay.classList.add('show');
+            } else {
+                if (sidebar) sidebar.classList.remove('open');
+                if (overlay) overlay.classList.remove('show');
+            }
+        }
+
+        // Draw submenu toggle (mobile bottom bar)
+        function toggleDrawSubmenu() {
+            const submenu = document.getElementById('drawSubmenu');
+            const shapeSubmenu = document.getElementById('shapeSubmenu');
+            // close shape submenu if open
+            if (shapeSubmenu && shapeSubmenuOpen) {
+                shapeSubmenu.classList.remove('show');
+                shapeSubmenuOpen = false;
+            }
+            drawSubmenuOpen = !drawSubmenuOpen;
+            if (submenu) submenu.classList.toggle('show', drawSubmenuOpen);
+        }
+
+        // Shape submenu toggle (mobile bottom bar)
+        function toggleShapeSubmenu() {
+            const submenu = document.getElementById('shapeSubmenu');
+            const drawSubmenu = document.getElementById('drawSubmenu');
+            if (drawSubmenu && drawSubmenuOpen) {
+                drawSubmenu.classList.remove('show');
+                drawSubmenuOpen = false;
+            }
+            shapeSubmenuOpen = !shapeSubmenuOpen;
+            if (submenu) submenu.classList.toggle('show', shapeSubmenuOpen);
+        }
+
+// Add delete functionality to notes
+function updateNotesDisplay() {
+    const containers = ['savedNotesList', 'notesListContainer'];
+    containers.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = '';
+        if (!savedNotes || savedNotes.length === 0) {
+            el.innerHTML = '<div class="text-gray-400 text-sm">No notes saved yet</div>';
+            return;
+        }
+        savedNotes.forEach(note => {
+            const div = document.createElement('div');
+            div.className = 'note-item';
+            div.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="note-item-text">${note.text.substring(0, 50)}${note.text.length > 50 ? '...' : ''}</div>
+                        <div class="note-item-meta">${new Date(note.timestamp).toLocaleString()}</div>
+                    </div>
+                    <button class="delete-note-btn text-gray-400 hover:text-red-500 p-1" data-note-id="${note.id}">
+                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            
+            // Add click handler for the note itself
+            div.querySelector(':scope > div').addEventListener('click', (e) => {
+                if (e.target.closest('.delete-note-btn')) return; // Don't trigger note click when delete button is clicked
+                
+                if (note.elementId) {
+                    let target = null;
+                    drawnItems.eachLayer(l => { if (l._msid === note.elementId) target = l; });
+                    if (target) {
+                        const bounds = target.getBounds ? target.getBounds() : L.latLngBounds([target.getLatLng()]);
+                        map.fitBounds(bounds);
+                        if (target.openPopup) target.openPopup();
+                    }
+                }
+                hideNotesPopup();
+            });
+            
+            el.appendChild(div);
+        });
+        
+              // Add delete event listeners after adding notes to DOM
+              el.querySelectorAll('.delete-note-btn').forEach(btn => {
+                  btn.addEventListener('click', function(e) {
+                      e.stopPropagation(); // Prevent bubbling
+                      const noteId = parseInt(this.dataset.noteId);
+                      deleteNote(noteId);
+                  });
+              });
+              
+              // Initialize Feather icons for the new buttons
+              feather.replace();
+          });
+      }
+
+      // Add function to delete a note
+function deleteNote(noteId) {
+    const index = savedNotes.findIndex(note => note.id === noteId);
+    if (index !== -1) {
+        const note = savedNotes[index];
+        savedNotes.splice(index, 1);
+        
+        // Also clear element note mapping if this was the only note for that element
+        if (note.elementId) {
+            const otherNotes = savedNotes.filter(n => n.elementId === note.elementId);
+            if (otherNotes.length === 0) {
+                elementNotes.delete(note.elementId);
+            }
+        }
+        
+        saveData();
+        updateNotesDisplay();
+    }
+}
+        function showNotesPopup() {
+            const overlay = document.getElementById('notesOverlay');
+            const ta = document.getElementById('notesTextarea');
+            if (overlay) overlay.classList.remove('hidden');
+            if (ta) ta.focus();
+            updateNotesDisplay();
+        }
+
+        function hideNotesPopup() {
+            const overlay = document.getElementById('notesOverlay');
+            const ta = document.getElementById('notesTextarea');
+            if (overlay) overlay.classList.add('hidden');
+            if (ta) ta.value = '';
+        }
+
+        function saveNote() {
+            const ta = document.getElementById('notesTextarea');
+            const text = (ta?.value || '').trim();
+            if (!text) { hideNotesPopup(); return; }
+            const elementId = currentElementForNotes && (currentElementForNotes._msid || null);
+            const note = { id: Date.now(), text, timestamp: Date.now(), elementId };
+            savedNotes.push(note);
+            if (elementId) elementNotes.set(elementId, text);
+            saveData();
+            updateNotesDisplay();
+            if (ta) ta.value = '';
+            hideNotesPopup();
+        }
+
+        // Vertex helpers
+        function clearVertexMarkers() {
+            try { vertexMarkers.forEach(m => map.removeLayer(m)); } catch {}
+            vertexMarkers = [];
+        }
+
+        function showVertexMarkers() {
+            clearVertexMarkers();
+            drawnItems.eachLayer(layer => {
+                if (!(layer instanceof L.Polyline) && !(layer instanceof L.Polygon)) return;
+                let latlngs = layer.getLatLngs();
+                if (layer instanceof L.Polygon && Array.isArray(latlngs[0])) latlngs = latlngs[0];
+                latlngs.forEach((latlng, index) => {
+                    const marker = L.circleMarker(latlng, {
+                        radius: 12, fillColor: '#ef4444', color: '#dc2626', weight: 3, opacity: 1, fillOpacity: 0.8
+                    }).addTo(map);
+                    marker.on('click', () => deleteVertex(layer, index));
+                    vertexMarkers.push(marker);
+                });
+            });
+        }
+
+        function deleteVertex(layer, vertexIndex) {
+            let latlngs = layer.getLatLngs();
+            let isPoly = layer instanceof L.Polygon;
+            if (isPoly && Array.isArray(latlngs[0])) latlngs = latlngs[0];
+
+            const min = isPoly ? 3 : 2;
+            if (latlngs.length > min) {
+                latlngs.splice(vertexIndex, 1);
+                if (isPoly) layer.setLatLngs([latlngs]); else layer.setLatLngs(latlngs);
+                // persist updated geometry
+                saveUserDrawing(layer);
+                saveData();
+                showVertexMarkers();
+            } else {
+                // remove layer entirely
+                const msid = layer._msid;
+                drawnItems.removeLayer(layer);
+                elementNotes.delete(msid);
+                removeUserDrawing(msid);
+                clearVertexMarkers();
+                saveData();
+                updateNotesDisplay();
+            }
+        }
+
+        // Search
+        function initializeSearch() {
+            const ids = ['searchInput', 'mobileSearchInput'];
+            ids.forEach(inputId => {
+                const input = document.getElementById(inputId);
+                const results = document.getElementById(inputId === 'searchInput' ? 'searchResults' : 'mobileSearchResults');
+                if (!input || !results) return;
+                let t;
+                input.addEventListener('input', () => {
+                    clearTimeout(t);
+                    const q = input.value.trim();
+                    if (q.length < 3) { results.classList.add('hidden'); return; }
+                    t = setTimeout(() => performSearch(q, results, input), 300);
+                });
+                input.addEventListener('blur', () => setTimeout(() => results.classList.add('hidden'), 200));
+            });
+        }
+
+        async function performSearch(query, resultsContainer, inputElement) {
+            try {
+                const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+                const results = await resp.json();
+                resultsContainer.innerHTML = '';
+                if (!Array.isArray(results) || results.length === 0) {
+                    resultsContainer.innerHTML = '<div class="search-result-item">No results found</div>';
+                } else {
+                    results.forEach(r => {
+                        const item = document.createElement('div');
+                        item.className = 'search-result-item';
+                        item.textContent = r.display_name;
+                        item.addEventListener('click', () => {
+                            map.setView([parseFloat(r.lat), parseFloat(r.lon)], 15);
+                            resultsContainer.classList.add('hidden');
+                            inputElement.value = r.display_name;
+                        });
+                        resultsContainer.appendChild(item);
+                    });
+                }
+                resultsContainer.classList.remove('hidden');
+            } catch (e) {
+                resultsContainer.innerHTML = '<div class="search-result-item">Search error occurred</div>';
+                resultsContainer.classList.remove('hidden');
+            }
+        }
+
+        // <<< Missing helpers end <<<
+
+        // Event Listeners Setup
+        function setupEventListeners() {
+            // Mobile menu buttons
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleMobileSidebar);
+            }
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', toggleMobileSidebar);
+            }
+
+            // Desktop tool buttons
+            const toolButtons = [
+                { id: 'drawLineBtn', tool: 'drawLine' },
+                { id: 'freehandLineBtn', tool: 'freehandLine' },
+                { id: 'freehandAreaBtn', tool: 'freehandArea' },
+                { id: 'polygonBtn', tool: 'polygon' },
+                { id: 'starBtn', tool: 'star' },
+                { id: 'circleBtn', tool: 'circle' },
+                { id: 'deleteBtn', tool: 'delete' },
+                { id: 'vertexDeleteBtn', tool: 'vertexDelete' }
+            ];
+
+            toolButtons.forEach(({ id, tool }) => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.addEventListener('click', function() {
+                        setActiveTool(tool, this);
+                    });
+                }
+
+                // Mobile versions
+                const mobileBtn = document.getElementById('mobile' + id.charAt(0).toUpperCase() + id.slice(1));
+                if (mobileBtn) {
+                    mobileBtn.addEventListener('click', function() {
+                        setActiveTool(tool, this);
+                    });
+                }
+            });
+
+            // Mobile bottom toolbar
+            const mobileDrawBtn = document.getElementById('mobileDrawBtn');
+            const mobileShapeBtn = document.getElementById('mobileShapeBtn');
+            const mobileDeleteBtn = document.getElementById('mobileDeleteBtn');
+            const mobileSaveBottomBtn = document.getElementById('mobileSaveBottomBtn');
+            const mobileNotesBottomBtn = document.getElementById('mobileNotesBottomBtn');
+
+            if (mobileDrawBtn) {
+                mobileDrawBtn.addEventListener('click', function() {
+                    const becomingActive = !this.classList.contains('active');
+                    // Toggle this, clear others
+                    document.querySelectorAll('.mobile-tool-btn').forEach(btn => btn.classList.remove('active'));
+                    // Hide submenu by default
+                    if (drawSubmenuOpen) toggleDrawSubmenu();
+                    if (becomingActive) {
+                        this.classList.add('active');
+                        toggleDrawSubmenu(); // open above the bar
+                    } else {
+                        setActiveTool(null, null); // turning off
+                    }
+                });
+            }
+            if (mobileShapeBtn) {
+                mobileShapeBtn.addEventListener('click', function() {
+                    const becomingActive = !this.classList.contains('active');
+                    document.querySelectorAll('.mobile-tool-btn').forEach(btn => btn.classList.remove('active'));
+                    // Toggle shape submenu
+                    if (becomingActive) {
+                        this.classList.add('active');
+                        toggleShapeSubmenu();
+                    } else {
+                        setActiveTool(null, null);
+                        const shapeSub = document.getElementById('shapeSubmenu');
+                        if (shapeSub) shapeSub.classList.remove('show');
+                    }
+                });
+            }
+            if (mobileDeleteBtn) {
+                mobileDeleteBtn.addEventListener('click', function() {
+                    const wasActive = this.classList.contains('active');
+                    document.querySelectorAll('.mobile-tool-btn').forEach(btn => btn.classList.remove('active'));
+                    if (wasActive) {
+                        setActiveTool(null, null); // toggle off
+                    } else {
+                        this.classList.add('active');
+                        setActiveTool('delete', this);
+                    }
+                });
+            }
+            if (mobileSaveBottomBtn) {
+                mobileSaveBottomBtn.addEventListener('click', manualSave);
+            }
+            if (mobileNotesBottomBtn) {
+                mobileNotesBottomBtn.addEventListener('click', showNotesPopup);
+            }
+
+            // Fix secondary menu behavior - close submenu after selection
+              document.querySelectorAll('.draw-submenu-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                const tool = this.dataset.tool;
+                setActiveTool(tool, this);
+                // Also activate the main draw button
+                document.getElementById('mobileDrawBtn').classList.add('active');
+                // Close the submenu after selection
+                toggleDrawSubmenu();
+          });
+      });
+
+            // Shape submenu buttons - close after selection
+      document.querySelectorAll('.shape-submenu-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+          const tool = this.dataset.tool;
+          setActiveTool(tool, this);
+          document.getElementById('mobileShapeBtn').classList.add('active');
+          // Close the submenu after selection
+          toggleShapeSubmenu();
+    });
+});
+
+            // View switcher functionality
+            const streetViewBtn = document.getElementById('streetViewBtn');
+            const satelliteViewBtn = document.getElementById('satelliteViewBtn');
+            const mobileStreetViewBtn = document.getElementById('mobileStreetViewBtn');
+            const mobileSatelliteViewBtn = document.getElementById('mobileSatelliteViewBtn');
+
+            function switchToStreetView() {
+                if (satelliteViewBtn) satelliteViewBtn.classList.remove('active');
+                if (streetViewBtn) streetViewBtn.classList.add('active');
+                if (mobileStreetViewBtn) {
+                    mobileStreetViewBtn.classList.add('bg-blue-500');
+                    mobileStreetViewBtn.classList.remove('bg-glass-bg');
+                }
+                if (mobileSatelliteViewBtn) {
+                    mobileSatelliteViewBtn.classList.remove('bg-blue-500');
+                    mobileSatelliteViewBtn.classList.add('bg-glass-bg');
+                }
+                map.removeLayer(satelliteLayer);
+                map.addLayer(streetLayer);
+            }
+
+            function switchToSatelliteView() {
+                if (streetViewBtn) streetViewBtn.classList.remove('active');
+                if (satelliteViewBtn) satelliteViewBtn.classList.add('active');
+                if (mobileSatelliteViewBtn) {
+                    mobileSatelliteViewBtn.classList.add('bg-blue-500');
+                    mobileSatelliteViewBtn.classList.remove('bg-glass-bg');
+                }
+                if (mobileStreetViewBtn) {
+                    mobileStreetViewBtn.classList.remove('bg-blue-500');
+                    mobileStreetViewBtn.classList.add('bg-glass-bg');
+                }
+                map.removeLayer(streetLayer);
+                map.addLayer(satelliteLayer);
+            }
+
+            if (streetViewBtn) streetViewBtn.addEventListener('click', switchToStreetView);
+            if (satelliteViewBtn) satelliteViewBtn.addEventListener('click', switchToSatelliteView);
+            if (mobileStreetViewBtn) mobileStreetViewBtn.addEventListener('click', switchToStreetView);
+            if (mobileSatelliteViewBtn) mobileSatelliteViewBtn.addEventListener('click', switchToSatelliteView);
+
+            // Pin Mode toggle
+            const pinModeBtn = document.getElementById('pinModeBtn');
+            const mobilePinModeBtn = document.getElementById('mobilePinModeBtn');
+
+            function togglePinMode() {
+                pinMode = !pinMode;
+                const text = `Pin Mode: ${pinMode ? 'ON' : 'OFF'}`;
+                if (pinModeBtn) {
+                    pinModeBtn.innerHTML = `<i data-feather="map-pin" class="w-4 h-4 mr-2"></i>${text}`;
+                    pinModeBtn.classList.toggle('active', pinMode);
+                }
+                if (mobilePinModeBtn) {
+                    mobilePinModeBtn.innerHTML = `<i data-feather="map-pin" class="w-5 h-5 mr-2"></i>${text}`;
+                    mobilePinModeBtn.classList.toggle('bg-blue-500', pinMode);
+                }
+                feather.replace();
+            }
+
+            if (pinModeBtn) pinModeBtn.addEventListener('click', togglePinMode);
+            if (mobilePinModeBtn) mobilePinModeBtn.addEventListener('click', togglePinMode);
+
+            // Save buttons
+            const saveBtn = document.getElementById('saveBtn');
+            const mobileSaveBtn = document.getElementById('mobileSaveBtn');
+            if (saveBtn) saveBtn.addEventListener('click', manualSave);
+            if (mobileSaveBtn) mobileSaveBtn.addEventListener('click', manualSave);
+
+            // Clear button
+            const clearBtn = document.getElementById('clearBtn');
+            const mobileClearBtn = document.getElementById('mobileClearBtn');
+
+            function clearAll() {
+                drawnItems.clearLayers();
+                clearVertexMarkers();
+                elementNotes.clear();
+                savedNotes = [];
+                saveData();
+                updateNotesDisplay();
+                setActiveTool(null, null);
+            }
+
+            if (clearBtn) clearBtn.addEventListener('click', clearAll);
+            if (mobileClearBtn) mobileClearBtn.addEventListener('click', clearAll);
+
+            // Notes panel
+            const notesBtn = document.getElementById('notesBtn');
+            const mobileNotesBtn = document.getElementById('mobileNotesBtn');
+            const closeNotesBtn = document.getElementById('closeNotesBtn');
+            const cancelNotesBtn = document.getElementById('cancelNotesBtn');
+            const saveNotesBtn = document.getElementById('saveNotesBtn');
+
+            if (notesBtn) notesBtn.addEventListener('click', showNotesPopup);
+            if (mobileNotesBtn) mobileNotesBtn.addEventListener('click', showNotesPopup);
+            if (closeNotesBtn) closeNotesBtn.addEventListener('click', hideNotesPopup);
+            if (cancelNotesBtn) cancelNotesBtn.addEventListener('click', hideNotesPopup);
+            if (saveNotesBtn) saveNotesBtn.addEventListener('click', saveNote);
+
+            // Line width slider
+            const lineWidthSlider = document.getElementById('lineWidthSlider');
+            const lineWidthValue = document.getElementById('lineWidthValue');
+
+            if (lineWidthSlider && lineWidthValue) {
+                lineWidthSlider.addEventListener('input', function() {
+                    lineWidthValue.textContent = this.value + 'px';
+                });
+            }
+
+            // Labels functionality
+            const addLabelBtn = document.getElementById('addLabelBtn');
+            const labelInput = document.getElementById('labelInput');
+
+            if (addLabelBtn && labelInput) {
+                addLabelBtn.addEventListener('click', function() {
+                    let labelText = labelInput.value.trim();
+                    if (labelText) {
+                        let center = map.getCenter();
+                        let marker = L.marker(center).addTo(drawnItems);
+                        marker.bindPopup(labelText).openPopup();
+                        if (!marker._msid) marker._msid = generateId();
+                        saveUserDrawing(marker);
+                        addNotesClickEvent(marker);
+                        labelInput.value = '';
+                        saveData();
+                    }
+                });
+            }
+
+            // User management
+            const addUserBtn = document.getElementById('addUserBtn');
+            const newUserInput = document.getElementById('newUserInput');
+            const userSelect = document.getElementById('userSelect');
+            // Mobile user controls
+            const mobileAddUserBtn = document.getElementById('mobileAddUserBtn');
+            const mobileNewUserInput = document.getElementById('mobileNewUserInput');
+            const mobileUserSelect = document.getElementById('mobileUserSelect');
+
+            if (addUserBtn && newUserInput && userSelect) {
+                addUserBtn.addEventListener('click', function() {
+                    let newUser = newUserInput.value.trim();
+                    if (newUser) {
+                        const store = readStore();
+                        ensureUser(store, newUser);
+                        writeStore(store);
+                        // update select UI
+                        let option = document.createElement('option');
+                        option.value = newUser; option.textContent = newUser;
+                        userSelect.appendChild(option);
+                        if (mobileUserSelect) {
+                            const mopt = document.createElement('option');
+                            mopt.value = newUser; mopt.textContent = newUser;
+                            mobileUserSelect.appendChild(mopt);
+                        }
+                        userSelect.value = newUser;
+                        newUserInput.value = '';
+                        loadUserData(newUser);
+                    }
+                });
+                userSelect.addEventListener('change', function(){
+                    loadUserData(this.value);
+                    // keep mobile select in sync
+                    if (mobileUserSelect) mobileUserSelect.value = this.value;
+                });
+            }
+
+            if (mobileAddUserBtn && mobileNewUserInput && mobileUserSelect) {
+                mobileAddUserBtn.addEventListener('click', function() {
+                    let newUser = mobileNewUserInput.value.trim();
+                    if (newUser) {
+                        const store = readStore();
+                        ensureUser(store, newUser);
+                        writeStore(store);
+                        // update both selects
+                        let mopt = document.createElement('option');
+                        mopt.value = newUser; mopt.textContent = newUser;
+                        mobileUserSelect.appendChild(mopt);
+                        const dsel = document.getElementById('userSelect');
+                        if (dsel) {
+                            const opt = document.createElement('option');
+                            opt.value = newUser; opt.textContent = newUser;
+                            dsel.appendChild(opt);
+                            dsel.value = newUser;
+                        }
+                        mobileUserSelect.value = newUser;
+                        mobileNewUserInput.value = '';
+                        loadUserData(newUser);
+                    }
+                });
+                mobileUserSelect.addEventListener('change', function(){
+                    loadUserData(this.value);
+                    const dsel = document.getElementById('userSelect');
+                    if (dsel) dsel.value = this.value;
+                });
+            }
+        }
+
+        // Enhanced map click handling with double-click support for lines
+        let lastClickTime = 0;
+        let clickCount = 0;
+
+    map.on('click', function(e) {
+            const currentTime = new Date().getTime();
+            const timeDiff = currentTime - lastClickTime;
+            
+            if (timeDiff < 300) {
+                clickCount++;
+            } else {
+                clickCount = 1;
+            }
+            lastClickTime = currentTime;
+
+            // Handle double-click for line finishing
+            if (clickCount === 2 && currentTool === 'drawLine' && currentPath.length >= 2) {
+                // Finish the line
+                if (currentDrawingLayer) {
+                    finishDrawing(250);
+                }
+                clickCount = 0;
+                return;
+            }
+
+            // Single click handling
+            setTimeout(() => {
+                if (clickCount === 1) {
+                    handleSingleClick(e);
+                }
+                clickCount = 0;
+            }, 300);
+        });
+
+        function updateFreehandDrawing() {
+            if (currentDrawingLayer) {
+                drawnItems.removeLayer(currentDrawingLayer);
+            }
+            if (currentTool === 'freehandLine') {
+                currentDrawingLayer = L.polyline(freehandPath, {
+                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
+                    weight: document.getElementById('lineWidthSlider')?.value || 3
+                });
+            } else {
+                currentDrawingLayer = L.polygon(freehandPath, {
+                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
+                    fillColor: document.getElementById('fillColor')?.value || '#10b981',
+                    weight: document.getElementById('lineWidthSlider')?.value || 3,
+                    fillOpacity: 0.3
+                });
+            }
+            drawnItems.addLayer(currentDrawingLayer);
+        }
+
+        // Handle single click based on the active tool
+        function handleSingleClick(e) {
+                if (deleteMode) {
+        let clickedLayer = null;
+        drawnItems.eachLayer(function(layer) {
+            // Improved shape detection for deletion
+            if (layer instanceof L.Polygon || layer instanceof L.Circle) {
+                // For polygons and circles, use contains method or distance check
+                if (layer instanceof L.Polygon && layer.contains(e.latlng)) {
+                    clickedLayer = layer;
+                } else if (layer instanceof L.Circle) {
+                    // For circles, check if click is within radius
+                    const center = layer.getLatLng();
+                    const radius = layer.getRadius();
+                    if (center.distanceTo(e.latlng) <= radius) {
+                        clickedLayer = layer;
+                    }
+                }
+            } else if (layer.getBounds && layer.getBounds().contains(e.latlng)) {
+                clickedLayer = layer;
+            } else if (layer.getLatLng && layer.getLatLng().distanceTo(e.latlng) < 100) {
+                clickedLayer = layer;
+            }
+        });
+        if (clickedLayer) {
+            drawnItems.removeLayer(clickedLayer);
+            const msid = clickedLayer._msid || clickedLayer._leaflet_id;
+            elementNotes.delete(msid);
+            removeUserDrawing(msid);
+            saveData();
+            setTimeout(() => { setActiveTool(null, null); }, 250);
+        }
+        return;
+    }
+            if (vertexDeleteMode) return;
+            if (currentTool === 'drawLine') {
+                currentPath.push(e.latlng);
+                if (currentPath.length === 1) { try { disableMapInteractions(); } catch {} }
+                if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
+                currentDrawingLayer = L.polyline(currentPath, {
+                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
+                    weight: document.getElementById('lineWidthSlider')?.value || 3
+                });
+                drawnItems.addLayer(currentDrawingLayer);
+                if (currentPath.length === 1) {
+                    showCursorHelper('Click to add more points, double-click to finish');
+                }
+            } else if (currentTool === 'polygon') {
+                currentPath.push(e.latlng);
+                if (currentPath.length === 1) { try { disableMapInteractions(); } catch {} }
+                if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
+                currentDrawingLayer = L.polygon(currentPath, {
+                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
+                    fillColor: document.getElementById('fillColor')?.value || '#10b981',
+                    weight: document.getElementById('lineWidthSlider')?.value || 3,
+                    fillOpacity: 0.3
+                });
+                drawnItems.addLayer(currentDrawingLayer);
+                if (currentPath.length >= 3) {
+                    finishDrawing(250);
+                }
+            } else if (currentTool === 'star') {
+                try { disableMapInteractions(); } catch {}
+                let starPoints = createStarPoints(e.latlng, 0.01, 5);
+                currentDrawingLayer = L.polygon(starPoints, {
+                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
+                    fillColor: document.getElementById('fillColor')?.value || '#10b981',
+                    weight: document.getElementById('lineWidthSlider')?.value || 3,
+                    fillOpacity: 0.3
+                });
+                drawnItems.addLayer(currentDrawingLayer);
+                finishDrawing(250);
+            } else if (currentTool === 'circle') {
+                try { disableMapInteractions(); } catch {}
+                currentDrawingLayer = L.circle(e.latlng, {
+                    radius: 1000,
+                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
+                    fillColor: document.getElementById('fillColor')?.value || '#10b981',
+                    weight: document.getElementById('lineWidthSlider')?.value || 3,
+                    fillOpacity: 0.3
+                });
+                drawnItems.addLayer(currentDrawingLayer);
+                finishDrawing(250);
+            }
+        }
+
+        // Create star points
+        function createStarPoints(center, radius, points) {
+            let coords = [];
+            let angle = Math.PI / points;
+            
+            for (let i = 0; i < points * 2; i++) {
+                let r = i % 2 === 0 ? radius : radius * 0.5;
+                let a = i * angle;
+                coords.push([
+                    center.lat + r * Math.cos(a),
+                    center.lng + r * Math.sin(a)
+                ]);
+            }
+            return coords;
+        }
+
+    // Enhanced touch/mouse drawing for mobile
+        let freehandPath = [];
+        let isMouseDown = false;
+        let touchStarted = false;
+
+        // Mouse events
+    map.on('mousedown', function(e) {
+            if (currentTool === 'freehandLine' || currentTool === 'freehandArea') {
+                isMouseDown = true;
+                freehandPath = [e.latlng];
+        // Temporarily disable map interactions while drawing
+        try { disableMapInteractions(); } catch {}
+                e.originalEvent.preventDefault();
+            }
+        });
+
+        map.on('mousemove', function(e) {
+            if (isMouseDown && (currentTool === 'freehandLine' || currentTool === 'freehandArea')) {
+                freehandPath.push(e.latlng);
+                updateFreehandDrawing();
+            }
+        });
+
+    map.on('mouseup', function(e) {
+            if (isMouseDown && (currentTool === 'freehandLine' || currentTool === 'freehandArea')) {
+                isMouseDown = false;
+                finishDrawing(350);
+        // Re-enable map interactions after drawing
+        try { enableMapInteractions(); } catch {}
+            }
+        });
+
+        // Touch events for mobile
+    map.getContainer().addEventListener('touchstart', function(e) {
+            // Disable interactions during touch for shapes as well
+            if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+                try { disableMapInteractions(); } catch {}
+                const t = e.touches[0];
+                if (t) {
+                  const rect = map.getContainer().getBoundingClientRect();
+                  lastTouchLatLng = map.containerPointToLatLng([t.clientX - rect.left, t.clientY - rect.top]);
+                }
+                e.preventDefault();
+            }
+            if (currentTool === 'freehandLine' || currentTool === 'freehandArea') {
+                touchStarted = true;
+                const touch = e.touches[0];
+                const rect = map.getContainer().getBoundingClientRect();
+                const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
+                freehandPath = [latlng];
+                try { disableMapInteractions(); } catch {}
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        map.getContainer().addEventListener('touchmove', function(e) {
+                if (touchStarted && (currentTool === 'freehandLine' || currentTool === 'freehandArea')) {
+                    const touch = e.touches[0];
+                    const rect = map.getContainer().getBoundingClientRect();
+                    const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
+                    freehandPath.push(latlng);
+                    updateFreehandDrawing();
+                    e.preventDefault();
+                } else if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+                    const t = e.touches[0];
+                    if (t) {
+                      const rect = map.getContainer().getBoundingClientRect();
+                      lastTouchLatLng = map.containerPointToLatLng([t.clientX - rect.left, t.clientY - rect.top]);
+                    }
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+    map.getContainer().addEventListener('touchend', function(e) {
+            // Re-enable after shape touch ends
+            if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+                setTimeout(() => { if (!isDrawing) try { enableMapInteractions(); } catch {} }, 100);
+                e.preventDefault();
+            }
+            if (touchStarted && (currentTool === 'freehandLine' || currentTool === 'freehandArea')) {
+                touchStarted = false;
+                finishDrawing(350);
+                try { enableMapInteractions(); } catch {}
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Manual Save: persist current user data and give quick feedback
+        function manualSave() {
+            saveData();
+            const btns = [document.getElementById('saveBtn'), document.getElementById('mobileSaveBtn'), document.getElementById('mobileSaveBottomBtn')];
+            btns.forEach(btn => {
+                if (!btn) return;
+                const originalBg = btn.style.background;
+                btn.style.background = 'linear-gradient(135deg, var(--accent-green), var(--accent-blue))';
+                setTimeout(()=>{ btn.style.background = originalBg; }, 1200);
+            });
+        }
+
+        // Responsive handling
+        function handleResize() {
+            const newIsMobile = window.innerWidth <= 768;
+            if (newIsMobile !== isMobile) {
+                isMobile = newIsMobile;
+                // Reset sidebar/submenu states when changing layout
+                const sidebar = document.getElementById('mobileSidebar');
+                const overlay = document.getElementById('mobileOverlay');
+                const submenu = document.getElementById('drawSubmenu');
+                const shapeSub = document.getElementById('shapeSubmenu');
+                if (sidebar) sidebar.classList.remove('open');
+                if (overlay) overlay.classList.remove('show');
+                if (submenu) submenu.classList.remove('show');
+                if (shapeSub) shapeSub.classList.remove('show');
+                mobileSidebarOpen = false;
+                drawSubmenuOpen = false;
+                // Invalidate map size after layout change
+                setTimeout(() => map.invalidateSize(), 100);
+            } else {
+                // Still invalidate occasionally on resize
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+
+        // Initialize everything
+        function initialize() {
+            setupEventListeners();
+            initializeSearch();
+            loadSavedData();
+            setActiveTool(null, null);
+            // Re-initialize Feather icons after dynamic content
+            setTimeout(() => { try { feather.replace(); } catch {} }, 100);
+        }
+
+        // Start the application
+        initialize();
+
+        // Register Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>
+

@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Dì a Tailwind dove cercare le classi (v4) */
+@source "./index.html";

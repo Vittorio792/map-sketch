@@ -1,5 +1,5 @@
 // sw.js
-const VERSION = 'v1.0.0.19';
+const VERSION = 'v1.1.2';
 const APP_CACHE = `mapsketch-app-${VERSION}`;
 const RUNTIME_CACHE = `mapsketch-runtime-${VERSION}`;
 const SHELL = ['/index.html','/manifest.webmanifest'];
