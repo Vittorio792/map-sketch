@@ -1,0 +1,11 @@
+name = "map-api-proxy"
+main = "src/index.js"
+compatibility_date = "2025-10-14"
+
+# Environment variables (non-secret)
+[vars]
+# Add non-secret variables here if needed
+
+# Secrets (API keys) should be added via CLI using:
+# wrangler secret put OS_NGD_API_KEY
+

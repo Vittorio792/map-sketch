@@ -6,6 +6,10 @@
     <title>MapSketch Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- MapLibre GL for vector tiles -->
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.css" />
+    <script src="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
     <!-- Feather Icons CDN -->
     <script src="https://unpkg.com/feather-icons"></script>
     <link rel="icon" href="img/icon.svg" type="image/svg+xml">
@@ -612,6 +616,14 @@
                             <div class="text-xs opacity-70">Aerial imagery</div>
                         </div>
                     </button>
+                    
+                    <button class="w-full p-3 rounded-lg text-left transition-all duration-300 mb-2 flex items-center bg-glass-bg border border-glass-border text-white hover:bg-green-500/20" id="lidarToggleBtn" onclick="toggleLidarLayer()">
+                        <i data-feather="layers" class="w-5 h-5 mr-3"></i>
+                        <div>
+                            <div class="font-medium">LiDAR Elevation</div>
+                            <div class="text-xs opacity-70">GB-wide terrain overlay</div>
+                        </div>
+                    </button>
                 </div>
 
                 <!-- Drawing Controls -->
@@ -898,18 +910,167 @@
             maps.forEach(el => { if (el !== visible && el.parentNode) el.parentNode.removeChild(el); });
         })();
 
-        // Initialize map on the remaining visible container
-        let map = L.map('map').setView([51.505, -0.09], 13);
+        // Initialize map on the remaining visible container (UK centered)
+        let map = L.map('map', {
+            center: [54.5, -3.5],
+            zoom: 6,
+            minZoom:  7,
+            maxZoom: 19,
+            maxBounds: [[49.84, -8.74], [60.9, 1.96]],
+            maxBoundsViscosity: 1.0
+        });
         
-        // Default tile layer (Street View)
+        // Configuration
+        const PROXY_URL = 'https://map-api-proxy.map-sketch-proxy.workers.dev';
+        const LIDAR_WMS_URL = 'https://environment.data.gov.uk/spatialdata/lidar-composite-digital-terrain-model-dtm-1m/wms';
+        
+        // Intercept ALL fetch requests to route OS API calls through proxy
+        const { fetch: originalFetch } = window;
+        window.fetch = async (...args) => {
+            let [resource, config] = args;
+            
+            // Handle both string URLs and Request objects
+            let url = typeof resource === 'string' ? resource : resource.url;
+            
+            // Check if this is an OS API request (either absolute or relative)
+            if (url.includes('api.os.uk/maps/vector/ngd') || url.startsWith('/maps/vector/ngd')) {
+                // Extract the path after /maps/vector/ngd/ota/v1/
+                let pathMatch;
+                if (url.includes('api.os.uk')) {
+                    pathMatch = url.match(/\/maps\/vector\/ngd\/ota\/v1\/(.+)/);
+                } else {
+                    pathMatch = url.match(/\/maps\/vector\/ngd\/ota\/v1\/(.+)/);
+                }
+                
+                if (pathMatch) {
+                    const fullPath = pathMatch[1];
+                    // Extract collection and path
+                    const collectionMatch = fullPath.match(/collections\/([^\/]+)\/(.+)/);
+                    
+                    if (collectionMatch) {
+                        const collection = collectionMatch[1];
+                        const path = collectionMatch[2].replace(/\?.*$/, ''); // Remove query params
+                        
+                        const proxyUrl = `${PROXY_URL}?service=tiles&collection=${collection}&path=${path}`;
+                        console.log('Proxying OS NGD request:', url, '→', proxyUrl);
+                        
+                        // Make the proxied request
+                        const response = await originalFetch(proxyUrl, config);
+                        
+                        // If this is the style JSON, modify it to use proxy for tiles
+                        if (path.includes('styles/3857') && response.ok) {
+                            const json = async () => {
+                                const data = await response.clone().json();
+                                // The tiles array should already be set by the worker
+                                return data;
+                            };
+                            
+                            // Override the json() method
+                            const modifiedResponse = response.clone();
+                            Object.defineProperty(modifiedResponse, 'json', {
+                                value: json
+                            });
+                            return modifiedResponse;
+                        }
+                        
+                        return response;
+                    }
+                }
+            }
+            
+            // Pass through all other requests unchanged
+            return originalFetch(resource, config);
+        };
+        
+        // Layer variables
+        let currentBaseLayer = null;
+        let osngdLayer = null;
+        let lidarLayer = null;
+        
+        // Create OS NGD layer using MapLibre GL
+        function createOSNGDLayer() {
+            const collectionId = 'ngd-base';
+            
+            // Use the proxy URL for the initial style request
+            return L.maplibreGL({
+                style: `${PROXY_URL}?service=tiles&collection=${collectionId}&path=styles/3857`,
+                attribution: '© Ordnance Survey',
+                // Don't let MapLibre override the Leaflet map center/zoom
+                noWrap: true
+            });
+        }
+        
+        // OSM tile layer (Street View)
         let streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+            attribution: '© OpenStreetMap contributors',
+            minZoom:  7,
+            maxZoom: 19,
+            keepBuffer: 8
+        });
         
         // Satellite layer
         let satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© Esri'
+            attribution: '© Esri',
+            minZoom:  7,
+            maxZoom: 19,
+            keepBuffer: 8
         });
+        
+        // Roads overlay layer (shows on top of Satellite/LiDAR)
+        let roadsOverlay = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            opacity: 0.4,
+            attribution: '© OpenStreetMap contributors',
+            minZoom:  7,
+            maxZoom: 19,
+            keepBuffer: 8
+        });
+        
+        // Create UK-wide LiDAR layer with automatic regional routing
+        // Routes to appropriate WMS service based on geographic location
+        function createLidarLayer() {
+            // Use proxy URL with service=lidar parameter
+            // The proxy will automatically route to the correct regional WMS service
+            const layer = L.tileLayer.wms(PROXY_URL, {
+                service: 'lidar',  // This tells the proxy to handle as LiDAR request
+                layers: 'auto',    // Automatically selected by proxy based on location
+                format: 'image/png',
+                transparent: true,
+                opacity: 0.5,
+                attribution: '© Environment Agency, Scottish Government, Welsh Government',
+                maxZoom: 19,
+                crossOrigin: 'anonymous'  // This is critical to avoid ORB errors
+            });
+            
+            // Debug: Log when tiles are requested
+            layer.on('tileerror', function(error) {
+                console.error('LiDAR tile error:', error);
+                console.error('Failed tile URL:', error.tile ? error.tile.src : 'unknown');
+            });
+            
+            layer.on('tileloadstart', function(event) {
+                console.log('LiDAR tile requested:', event.tile.src);
+            });
+            
+            layer.on('tileload', function() {
+                console.log('LiDAR tile loaded successfully');
+            });
+            
+            return layer;
+        }
+        
+        // Track overlay state
+        let roadsOverlayActive = false;
+        
+        // Initialize with Street View (OSM) by default, user can switch to OS NGD
+        currentBaseLayer = streetLayer;
+        streetLayer.addTo(map);
+        
+        // Pre-create OS NGD layer so it's ready when user clicks
+        try {
+            osngdLayer = createOSNGDLayer();
+        } catch (error) {
+            console.error('Error creating OS NGD layer:', error);
+        }
 
     // Current drawing state
         let currentTool = null;
@@ -1539,27 +1700,49 @@ function deleteNote(noteId) {
 
         async function performSearch(query, resultsContainer, inputElement) {
             try {
-                const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-                const results = await resp.json();
+                // Use Photon geocoding API (open source, CORS-friendly, no API key needed)
+                // Photon is based on OSM data and has generous rate limits
+                const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=en`;
+                const resp = await fetch(photonUrl);
+                
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}`);
+                }
+                
+                const data = await resp.json();
+                const results = data.features || [];
+                
                 resultsContainer.innerHTML = '';
-                if (!Array.isArray(results) || results.length === 0) {
+                if (results.length === 0) {
                     resultsContainer.innerHTML = '<div class="search-result-item">No results found</div>';
                 } else {
                     results.forEach(r => {
+                        const props = r.properties || {};
+                        const coords = r.geometry.coordinates; // [lon, lat]
+                        
+                        // Build display name from properties
+                        let displayName = props.name || '';
+                        if (props.city) displayName += (displayName ? ', ' : '') + props.city;
+                        if (props.county) displayName += (displayName ? ', ' : '') + props.county;
+                        if (props.country) displayName += (displayName ? ', ' : '') + props.country;
+                        
+                        if (!displayName) displayName = 'Unknown location';
+                        
                         const item = document.createElement('div');
                         item.className = 'search-result-item';
-                        item.textContent = r.display_name;
+                        item.textContent = displayName;
                         item.addEventListener('click', () => {
-                            map.setView([parseFloat(r.lat), parseFloat(r.lon)], 15);
+                            map.setView([coords[1], coords[0]], 15); // Photon returns [lon, lat]
                             resultsContainer.classList.add('hidden');
-                            inputElement.value = r.display_name;
+                            inputElement.value = displayName;
                         });
                         resultsContainer.appendChild(item);
                     });
                 }
                 resultsContainer.classList.remove('hidden');
             } catch (e) {
-                resultsContainer.innerHTML = '<div class="search-result-item">Search error occurred</div>';
+                console.error('Search error:', e);
+                resultsContainer.innerHTML = '<div class="search-result-item">Search error. Please try again.</div>';
                 resultsContainer.classList.remove('hidden');
             }
         }
@@ -1694,8 +1877,8 @@ function deleteNote(noteId) {
             const mobileSatelliteViewBtn = document.getElementById('mobileSatelliteViewBtn');
 
             function switchToStreetView() {
-                if (satelliteViewBtn) satelliteViewBtn.classList.remove('active');
                 if (streetViewBtn) streetViewBtn.classList.add('active');
+                if (satelliteViewBtn) satelliteViewBtn.classList.remove('active');
                 if (mobileStreetViewBtn) {
                     mobileStreetViewBtn.classList.add('bg-blue-500');
                     mobileStreetViewBtn.classList.remove('bg-glass-bg');
@@ -1704,8 +1887,23 @@ function deleteNote(noteId) {
                     mobileSatelliteViewBtn.classList.remove('bg-blue-500');
                     mobileSatelliteViewBtn.classList.add('bg-glass-bg');
                 }
-                map.removeLayer(satelliteLayer);
-                map.addLayer(streetLayer);
+                // Remove current base layer
+                if (currentBaseLayer) {
+                    try { map.removeLayer(currentBaseLayer); } catch(e) {}
+                }
+                // Remove roads overlay when switching away from satellite
+                if (roadsOverlayActive) {
+                    try { map.removeLayer(roadsOverlay); } catch(e) {}
+                    roadsOverlayActive = false;
+                }
+                // Switch to OS NGD (or OSM as fallback)
+                if (osngdLayer) {
+                    currentBaseLayer = osngdLayer;
+                    map.addLayer(osngdLayer);
+                } else {
+                    currentBaseLayer = streetLayer;
+                    map.addLayer(streetLayer);
+                }
             }
 
             function switchToSatelliteView() {
@@ -1719,9 +1917,44 @@ function deleteNote(noteId) {
                     mobileStreetViewBtn.classList.remove('bg-blue-500');
                     mobileStreetViewBtn.classList.add('bg-glass-bg');
                 }
-                map.removeLayer(streetLayer);
+                // Remove current base layer
+                if (currentBaseLayer) {
+                    try { map.removeLayer(currentBaseLayer); } catch(e) {}
+                }
+                // Switch to satellite
+                currentBaseLayer = satelliteLayer;
                 map.addLayer(satelliteLayer);
+                
+                // Add roads overlay on top of satellite
+                if (!roadsOverlayActive) {
+                    map.addLayer(roadsOverlay);
+                    roadsOverlayActive = true;
+                }
             }
+            
+            // LiDAR toggle function
+            window.toggleLidarLayer = function() {
+                if (lidarLayer && map.hasLayer(lidarLayer)) {
+                    map.removeLayer(lidarLayer);
+                    console.log('LiDAR layer removed');
+                    // When LiDAR is off and we're on satellite, show roads overlay
+                    if (currentBaseLayer === satelliteLayer && !roadsOverlayActive) {
+                        map.addLayer(roadsOverlay);
+                        roadsOverlayActive = true;
+                    }
+                } else {
+                    if (!lidarLayer) {
+                        lidarLayer = createLidarLayer();
+                    }
+                    map.addLayer(lidarLayer);
+                    console.log('LiDAR layer added');
+                    // When LiDAR is on, also show roads overlay on top
+                    if (!roadsOverlayActive) {
+                        map.addLayer(roadsOverlay);
+                        roadsOverlayActive = true;
+                    }
+                }
+            };
 
             if (streetViewBtn) streetViewBtn.addEventListener('click', switchToStreetView);
             if (satelliteViewBtn) satelliteViewBtn.addEventListener('click', switchToSatelliteView);
