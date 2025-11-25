@@ -222,11 +222,13 @@
         }
 
         .mobile-bottom-bar {
-            height: 80px;
+            height: auto;
+            min-height: 80px;
             background: var(--glass-bg);
             backdrop-filter: blur(20px);
             border-top: 1px solid var(--glass-border);
             padding: 12px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
             position: relative; /* ensure submenu positions above this bar */
             z-index: 3500; /* sit above the map */
             display: grid;
@@ -541,10 +543,6 @@
 
             <!-- Right Controls -->
             <div class="flex items-center space-x-3">
-                <button class="header-button" id="pinModeBtn">
-                    <i data-feather="map-pin" class="w-4 h-4 mr-2"></i>
-                    Pin Mode: OFF
-                </button>
                 <button class="header-button" id="saveBtn">
                     <i data-feather="save" class="w-4 h-4 mr-2"></i>
                     Save
@@ -573,11 +571,8 @@
                 <div class="tool-button" id="freehandAreaBtn" title="Freehand Area">
                     <i data-feather="edit"></i>
                 </div>
-                <div class="tool-button" id="polygonBtn" title="Polygon">
-                    <i data-feather="hexagon"></i>
-                </div>
-                <div class="tool-button" id="starBtn" title="Star">
-                    <i data-feather="star"></i>
+                <div class="tool-button" id="squareBtn" title="Square">
+                    <i data-feather="square"></i>
                 </div>
                 <div class="tool-button" id="circleBtn" title="Circle">
                     <i data-feather="circle"></i>
@@ -588,6 +583,9 @@
                 </div>
                 <div class="tool-button" id="vertexDeleteBtn" title="Vertex Delete">
                     <i data-feather="minus-circle"></i>
+                </div>
+                <div class="tool-button" id="rotateBtn" title="Rotate">
+                    <i data-feather="refresh-cw"></i>
                 </div>
             </div>
 
@@ -618,14 +616,6 @@
                         </div>
                     </button>
                     
-                    <button class="w-full p-3 rounded-lg text-left transition-all duration-300 mb-2 flex items-center bg-glass-bg border border-glass-border text-white hover:bg-green-500/20" id="lidarToggleBtn" onclick="toggleLidarLayer()">
-                        <i data-feather="layers" class="w-5 h-5 mr-3"></i>
-                        <div>
-                            <div class="font-medium">Terrain Elevation</div>
-                            <div class="text-xs opacity-70">Global elevation data</div>
-                        </div>
-                    </button>
-                    
                     <button class="w-full p-3 rounded-lg text-left transition-all duration-300 mb-2 flex items-center bg-glass-bg border border-glass-border text-white hover:bg-orange-500/20" id="romanRoadsToggleBtn" onclick="toggleRomanRoads()">
                         <i data-feather="map" class="w-5 h-5 mr-3"></i>
                         <div>
@@ -641,8 +631,8 @@
                     <div class="space-y-3">
                         <div>
                             <label class="text-xs text-gray-400 block mb-1">Line Width</label>
-                            <input type="range" min="1" max="10" value="3" class="w-full" id="lineWidthSlider">
-                            <span class="text-xs text-gray-400" id="lineWidthValue">3px</span>
+                            <input type="range" min="1" max="20" value="8" class="w-full" id="lineWidthSlider">
+                            <span class="text-xs text-gray-400" id="lineWidthValue">8px</span>
                         </div>
                     </div>
                 </div>
@@ -740,17 +730,17 @@
                         <i data-feather="edit" class="w-5 h-5"></i>
                         <span>Freehand Area</span>
                     </button>
-                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobilePolygonBtn">
-                        <i data-feather="hexagon" class="w-5 h-5"></i>
-                        <span>Polygon</span>
-                    </button>
-                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileStarBtn">
-                        <i data-feather="star" class="w-5 h-5"></i>
-                        <span>Star</span>
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileSquareBtn">
+                        <i data-feather="square" class="w-5 h-5"></i>
+                        <span>Square</span>
                     </button>
                     <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileCircleBtn">
                         <i data-feather="circle" class="w-5 h-5"></i>
                         <span>Circle</span>
+                    </button>
+                    <button class="w-full p-3 rounded-lg bg-glass-bg border border-glass-border text-white flex items-center space-x-3 hover:bg-blue-500/20" id="mobileRotateBtn">
+                        <i data-feather="refresh-cw" class="w-5 h-5"></i>
+                        <span>Rotate</span>
                     </button>
                 </div>
             </div>
@@ -766,10 +756,6 @@
                     <i data-feather="globe" class="w-5 h-5 mr-2"></i>
                     Satellite View
                 </button>
-                <button onclick="toggleLidarLayer()" class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white hover:bg-blue-500 transition-all">
-                    <i data-feather="layers" class="w-5 h-5 mr-2"></i>
-                    Toggle Terrain
-                </button>
                 <button onclick="toggleRomanRoads()" class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white hover:bg-orange-500 transition-all">
                     <i data-feather="map" class="w-5 h-5 mr-2"></i>
                     Toggle Roman Roads
@@ -779,10 +765,6 @@
             <!-- Controls -->
             <div class="mb-6">
                 <h4 class="text-sm font-medium text-gray-400 mb-3">Controls</h4>
-                <button class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white" id="mobilePinModeBtn">
-                    <i data-feather="map-pin" class="w-5 h-5 mr-2"></i>
-                    Pin Mode: OFF
-                </button>
                 <button class="w-full p-3 rounded-lg mb-2 bg-glass-bg border border-glass-border text-white" id="mobileSaveBtn">
                     <i data-feather="save" class="w-5 h-5 mr-2"></i>
                     Save
@@ -850,17 +832,17 @@
             <!-- Shape Submenu -->
             <div class="shape-submenu" id="shapeSubmenu">
                 <div class="shape-submenu-grid">
-                    <div class="shape-submenu-btn" data-tool="polygon">
-                        <i data-feather="hexagon" class="w-4 h-4 mb-1"></i>
-                        <div>Polygon</div>
-                    </div>
-                    <div class="shape-submenu-btn" data-tool="star">
-                        <i data-feather="star" class="w-4 h-4 mb-1"></i>
-                        <div>Star</div>
+                    <div class="shape-submenu-btn" data-tool="square">
+                        <i data-feather="square" class="w-4 h-4 mb-1"></i>
+                        <div>Square</div>
                     </div>
                     <div class="shape-submenu-btn" data-tool="circle">
                         <i data-feather="circle" class="w-4 h-4 mb-1"></i>
                         <div>Circle</div>
+                    </div>
+                    <div class="shape-submenu-btn" data-tool="rotate">
+                        <i data-feather="refresh-cw" class="w-4 h-4 mb-1"></i>
+                        <div>Rotate</div>
                     </div>
                 </div>
             </div>
@@ -938,11 +920,9 @@
         });
         
         // Configuration
-        const TERRAIN_TILES_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
         
         // Layer variables
         let currentBaseLayer = null;
-        let lidarLayer = null;
         
         // OSM tile layer (Street View)
         let streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -969,28 +949,6 @@
             keepBuffer: 8
         });
         
-        // Create global terrain elevation layer using AWS Terrain Tiles (Terrarium format)
-        // Covers entire Ancient Roman Empire area with free, high-quality elevation data
-        function createLidarLayer() {
-            const layer = L.tileLayer(TERRAIN_TILES_URL, {
-                attribution: '© Mapzen, © OpenStreetMap contributors',
-                maxZoom: 15,
-                opacity: 0.5,
-                crossOrigin: 'anonymous'
-            });
-            
-            // Debug: Log tile loading
-            layer.on('tileerror', function(error) {
-                console.error('Terrain tile error:', error);
-            });
-            
-            layer.on('tileload', function() {
-                console.log('Terrain tile loaded successfully');
-            });
-            
-            return layer;
-        }
-        
         // Track overlay state
         let roadsOverlayActive = false;
         
@@ -1003,11 +961,14 @@
         let isDrawing = false;
         let currentPath = [];
         let drawnItems = L.featureGroup().addTo(map);
-        let pinMode = false;
         let deleteMode = false;
         let vertexDeleteMode = false;
+        let rotateMode = false;
         let currentDrawingLayer = null;
         let vertexMarkers = [];
+        let rotationHandle = null;
+        let rotationCenterMarker = null;
+        let currentRotationLayer = null;
     // Per-user state
     let currentUser = 'guest';
     let elementNotes = new Map(); // Map<msid, text>
@@ -1103,7 +1064,7 @@
             let layer;
             if (rec.type === 'circle') {
                 const ll = [rec.geo.geometry.coordinates[1], rec.geo.geometry.coordinates[0]];
-                layer = L.circle(ll, { radius: rec.style.radius || 1000, color: rec.style.color || '#3b82f6', fillColor: rec.style.fillColor || '#10b981', weight: rec.style.weight || 3, fillOpacity: rec.style.fillOpacity ?? 0.3 });
+                layer = L.circle(ll, { radius: rec.style.radius || 1000, color: rec.style.color || '#3b82f6', fillColor: rec.style.fillColor || '#10b981', weight: rec.style.weight || 8, fillOpacity: rec.style.fillOpacity ?? 0.3 });
             } else if (rec.type === 'marker') {
                 const ll = [rec.geo.geometry.coordinates[1], rec.geo.geometry.coordinates[0]];
                 layer = L.marker(ll);
@@ -1111,7 +1072,7 @@
             } else {
                 // polyline or polygon from GeoJSON
                 layer = L.geoJSON(rec.geo, {
-                    style: { color: rec.style.color || '#3b82f6', weight: rec.style.weight || 3, fillColor: rec.style.fillColor || '#10b981', fillOpacity: rec.style.fillOpacity ?? 0.3 }
+                    style: { color: rec.style.color || '#3b82f6', weight: rec.style.weight || 8, fillColor: rec.style.fillColor || '#10b981', fillOpacity: rec.style.fillOpacity ?? 0.3 }
                 });
                 // L.geoJSON returns a layer group; extract actual layer
                 let lyr;
@@ -1229,6 +1190,7 @@ function hideCursorHelper() {
 
 /* Update messages per tool */
 function setActiveTool(toolName, buttonElement) {
+  console.log('setActiveTool:', toolName);
   // Remove active class from all tool buttons
   document.querySelectorAll('.tool-button, .mobile-tool-btn, .draw-submenu-btn').forEach(btn => {
     btn.classList.remove('active');
@@ -1251,7 +1213,9 @@ function setActiveTool(toolName, buttonElement) {
   }
   deleteMode = false;
   vertexDeleteMode = false;
+  rotateMode = false;
   clearVertexMarkers();
+  clearRotationControls();
   hideCursorHelper();
 
   // Restore interactions when switching tools
@@ -1276,16 +1240,17 @@ function setActiveTool(toolName, buttonElement) {
     vertexDeleteMode = true;
     showVertexMarkers();
     showCursorHelper('Tap red dots to remove vertices');
+  } else if (toolName === 'rotate') {
+    rotateMode = true;
+    showCursorHelper('Tap a shape to rotate');
   } else if (toolName === 'drawLine') {
     showCursorHelper('Tap to add points, double‑tap to finish');
-  } else if (toolName === 'polygon') {
-    showCursorHelper('Tap to add points, double‑tap to finish (min 3 points)');
   } else if (toolName === 'freehandLine' || toolName === 'freehandArea') {
     showCursorHelper('Press and drag to draw, release to finish');
-  } else if (toolName === 'star') {
-    showCursorHelper('Tap to set center, tap again to set size');
+  } else if (toolName === 'square') {
+    showCursorHelper('Tap to set first corner, tap again to set size');
   } else if (toolName === 'circle') {
-    showCursorHelper('Tap to place');
+    showCursorHelper('Tap to set center, tap again for radius');
   } else {
     // No active tool
     showCursorHelper('');
@@ -1306,7 +1271,7 @@ let lastTouchLatLng = null;
 /* touchstart */
 map.getContainer().addEventListener('touchstart', function(e) {
   // Disable interactions during touch for shapes too
-  if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+  if (currentTool === 'drawLine' || currentTool === 'square' || currentTool === 'circle') {
     try { disableMapInteractions(); } catch {}
     const t = e.touches[0];
     if (t) {
@@ -1335,7 +1300,7 @@ map.getContainer().addEventListener('touchmove', function(e) {
     freehandPath.push(latlng);
     updateFreehandDrawing();
     e.preventDefault();
-  } else if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+  } else if (currentTool === 'drawLine' || currentTool === 'square' || currentTool === 'circle') {
     const t = e.touches[0];
     if (t) {
       const rect = map.getContainer().getBoundingClientRect();
@@ -1347,7 +1312,7 @@ map.getContainer().addEventListener('touchmove', function(e) {
 
 /* touchend: synthesize single/double tap for shapes */
 map.getContainer().addEventListener('touchend', function(e) {
-  if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+  if (currentTool === 'drawLine' || currentTool === 'square' || currentTool === 'circle') {
     const now = Date.now();
     touchTapCount = (now - lastTouchTime < 300) ? touchTapCount + 1 : 1;
     lastTouchTime = now;
@@ -1360,10 +1325,6 @@ map.getContainer().addEventListener('touchend', function(e) {
 
     if (currentTool === 'drawLine' && touchTapCount === 2 && currentPath.length >= 2) {
       // Finish multi‑segment line on double‑tap
-      finishDrawing(250);
-      touchTapCount = 0;
-    } else if (currentTool === 'polygon' && touchTapCount === 2 && currentPath.length >= 3) {
-      // Finish polygon on double‑tap
       finishDrawing(250);
       touchTapCount = 0;
     } else {
@@ -1406,7 +1367,16 @@ map.getContainer().addEventListener('touchend', function(e) {
         // Add click/touch event for notes or deletion to an element
         function addNotesClickEvent(layer) {
             const deleteLayer = (e) => {
-                try { if (e) { L.DomEvent.stop(e); if (e.originalEvent) { e.originalEvent.preventDefault(); e.originalEvent.stopPropagation(); } } } catch {}
+                try { 
+                    if (e) { 
+                        L.DomEvent.stop(e); 
+                        if (e.originalEvent) { 
+                            e.originalEvent.preventDefault(); 
+                            e.originalEvent.stopPropagation(); 
+                            e.originalEvent.stopImmediatePropagation();
+                        } 
+                    } 
+                } catch {}
                 drawnItems.removeLayer(layer);
                 const msid = layer._msid || layer._leaflet_id;
                 elementNotes.delete(msid);
@@ -1416,11 +1386,24 @@ map.getContainer().addEventListener('touchend', function(e) {
             };
 
             layer.on('click', function(e) {
+                console.log('Layer click. State:', { deleteMode, currentTool, rotateMode });
+                // Strict check for delete mode
                 if (deleteMode || currentTool === 'delete') {
+                    console.log('Layer click: Delete mode active, deleting layer');
+                    L.DomEvent.stop(e);
+                    e.originalEvent && e.originalEvent.stopImmediatePropagation();
                     deleteLayer(e);
                     return;
                 }
-                if (!vertexDeleteMode && (currentTool === null || currentTool === undefined)) {
+                if (rotateMode || currentTool === 'rotate') {
+                    console.log('Layer click: Rotate mode active');
+                    L.DomEvent.stop(e);
+                    selectForRotation(layer);
+                    return;
+                }
+                // Only open notes if NO tool is active
+                if (!vertexDeleteMode && !deleteMode && !rotateMode && (currentTool === null || currentTool === undefined)) {
+                    console.log('Layer click: Opening notes');
                     currentElementForNotes = layer;
                     showNotesPopup();
                 }
@@ -1433,9 +1416,19 @@ map.getContainer().addEventListener('touchend', function(e) {
                     if (e.originalEvent) {
                         e.originalEvent.preventDefault();
                         e.originalEvent.stopPropagation();
+                        e.originalEvent.stopImmediatePropagation();
                     }
                     L.DomEvent.stop(e);
                     deleteLayer(e);
+                    return false;
+                }
+                if (rotateMode || currentTool === 'rotate') {
+                    if (e.originalEvent) {
+                        e.originalEvent.preventDefault();
+                        e.originalEvent.stopPropagation();
+                    }
+                    L.DomEvent.stop(e);
+                    selectForRotation(layer);
                     return false;
                 }
             });
@@ -1447,6 +1440,7 @@ map.getContainer().addEventListener('touchend', function(e) {
                     if (e.originalEvent) {
                         e.originalEvent.preventDefault();
                         e.originalEvent.stopPropagation();
+                        e.originalEvent.stopImmediatePropagation();
                     }
                     L.DomEvent.stop(e);
                     return false;
@@ -1574,6 +1568,12 @@ function deleteNote(noteId) {
     }
 }
         function showNotesPopup() {
+            console.log('showNotesPopup called. State:', { deleteMode, currentTool, rotateMode, vertexDeleteMode });
+            // Safety check: never open notes if in delete or rotate mode
+            if (deleteMode || currentTool === 'delete' || rotateMode || currentTool === 'rotate' || vertexDeleteMode) {
+                console.log('showNotesPopup blocked by mode check');
+                return;
+            }
             const overlay = document.getElementById('notesOverlay');
             const ta = document.getElementById('notesTextarea');
             if (overlay) overlay.classList.remove('hidden');
@@ -1647,6 +1647,153 @@ function deleteNote(noteId) {
                 saveData();
                 updateNotesDisplay();
             }
+        }
+
+        // Rotation Logic
+        function clearRotationControls() {
+            if (rotationHandle) { map.removeLayer(rotationHandle); rotationHandle = null; }
+            if (rotationCenterMarker) { map.removeLayer(rotationCenterMarker); rotationCenterMarker = null; }
+            currentRotationLayer = null;
+        }
+
+        function selectForRotation(layer) {
+            if (!(layer instanceof L.Polygon)) {
+                alert('Only shapes (squares, polygons) can be rotated.');
+                return;
+            }
+            clearRotationControls();
+            currentRotationLayer = layer;
+            
+            // Calculate centroid
+            const center = layer.getCenter();
+            
+            // Place center marker
+            rotationCenterMarker = L.circleMarker(center, {
+                radius: 4, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 1
+            }).addTo(map);
+            
+            // Place handle at top (project to pixels, move up, unproject)
+            const centerPoint = map.latLngToLayerPoint(center);
+            const handlePoint = L.point(centerPoint.x, centerPoint.y - 50); // 50px above center
+            const handleLatLng = map.layerPointToLatLng(handlePoint);
+            
+            const icon = L.divIcon({
+                className: 'rotation-handle',
+                html: '<div style="background:white; border:2px solid #3b82f6; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.2);"><i data-feather="refresh-cw" style="width:14px; height:14px; color:#3b82f6;"></i></div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            
+            rotationHandle = L.marker(handleLatLng, { icon: icon, draggable: true }).addTo(map);
+            setTimeout(() => feather.replace(), 50);
+
+            // Handle drag
+            rotationHandle.on('drag', function(e) {
+                const newLatLng = e.latlng;
+                const centerPt = map.project(center);
+                const oldHandlePt = map.project(handleLatLng); // approximate reference
+                const newHandlePt = map.project(newLatLng);
+                
+                // Calculate angle
+                const angle = Math.atan2(newHandlePt.y - centerPt.y, newHandlePt.x - centerPt.x) - Math.atan2(oldHandlePt.y - centerPt.y, oldHandlePt.x - centerPt.x);
+                
+                // Rotate polygon points
+                const latlngs = currentRotationLayer.getLatLngs();
+                
+                function rotateRecursive(obj) {
+                    if (Array.isArray(obj)) {
+                        if (Array.isArray(obj[0])) {
+                            return obj.map(rotateRecursive);
+                        } else {
+                            // Array of LatLngs
+                            return obj.map(ll => {
+                                const p = map.project(ll);
+                                const x = p.x - centerPt.x;
+                                const y = p.y - centerPt.y;
+                                const cos = Math.cos(angle);
+                                const sin = Math.sin(angle);
+                                const rx = x * cos - y * sin;
+                                const ry = x * sin + y * cos;
+                                return map.unproject(L.point(rx + centerPt.x, ry + centerPt.y));
+                            });
+                        }
+                    }
+                    return obj;
+                }
+                
+                const newLatLngs = rotateRecursive(latlngs);
+                currentRotationLayer.setLatLngs(newLatLngs);
+                
+                // Update handle reference for next drag event (incremental rotation)
+                // Actually, 'drag' event fires continuously. We need to be careful.
+                // Better approach: Calculate absolute angle from center-up vector?
+                // For simplicity in this 'drag' handler, we are doing incremental updates relative to the handle's previous position?
+                // No, 'drag' gives new position. But we need previous position to know delta.
+                // Leaflet drag doesn't give delta easily.
+                // Let's just re-calculate handle position based on rotation?
+                // Or simpler: Just use the handle's current angle relative to center to determine absolute rotation?
+                // But we need to rotate the polygon relative to its *current* state.
+                
+                // Let's use a simpler approach:
+                // 1. On dragstart, record start angle.
+                // 2. On drag, calculate current angle.
+                // 3. Delta = current - start.
+                // 4. Rotate original points by Delta.
+                // This requires storing original points on dragstart.
+            });
+            
+            let startAngle = 0;
+            let originalLatLngs = null;
+            
+            rotationHandle.on('dragstart', function(e) {
+                const centerPt = map.project(center);
+                const handlePt = map.project(e.target.getLatLng());
+                startAngle = Math.atan2(handlePt.y - centerPt.y, handlePt.x - centerPt.x);
+                // Deep copy latlngs
+                originalLatLngs = JSON.parse(JSON.stringify(currentRotationLayer.toGeoJSON().geometry.coordinates));
+                // GeoJSON is [lon, lat], Leaflet is [lat, lon]. Be careful.
+                // Better to use getLatLngs() and clone.
+                const cloneLatLngs = (arr) => {
+                    if (Array.isArray(arr[0])) return arr.map(cloneLatLngs);
+                    return arr.map(ll => L.latLng(ll.lat, ll.lng));
+                };
+                originalLatLngs = cloneLatLngs(currentRotationLayer.getLatLngs());
+            });
+            
+            rotationHandle.on('drag', function(e) {
+                const centerPt = map.project(center);
+                const handlePt = map.project(e.target.getLatLng());
+                const currentAngle = Math.atan2(handlePt.y - centerPt.y, handlePt.x - centerPt.x);
+                const delta = currentAngle - startAngle;
+                
+                function rotateRecursive(obj) {
+                    if (Array.isArray(obj)) {
+                        if (Array.isArray(obj[0])) {
+                            return obj.map(rotateRecursive);
+                        } else {
+                            return obj.map(ll => {
+                                const p = map.project(ll);
+                                const x = p.x - centerPt.x;
+                                const y = p.y - centerPt.y;
+                                const cos = Math.cos(delta);
+                                const sin = Math.sin(delta);
+                                const rx = x * cos - y * sin;
+                                const ry = x * sin + y * cos;
+                                return map.unproject(L.point(rx + centerPt.x, ry + centerPt.y));
+                            });
+                        }
+                    }
+                    return obj;
+                }
+                
+                const newLatLngs = rotateRecursive(originalLatLngs);
+                currentRotationLayer.setLatLngs(newLatLngs);
+            });
+            
+            rotationHandle.on('dragend', function() {
+                saveUserDrawing(currentRotationLayer);
+                saveData();
+            });
         }
 
         // Search
@@ -1736,11 +1883,11 @@ function deleteNote(noteId) {
                 { id: 'drawLineBtn', tool: 'drawLine' },
                 { id: 'freehandLineBtn', tool: 'freehandLine' },
                 { id: 'freehandAreaBtn', tool: 'freehandArea' },
-                { id: 'polygonBtn', tool: 'polygon' },
-                { id: 'starBtn', tool: 'star' },
+                { id: 'squareBtn', tool: 'square' },
                 { id: 'circleBtn', tool: 'circle' },
                 { id: 'deleteBtn', tool: 'delete' },
-                { id: 'vertexDeleteBtn', tool: 'vertexDelete' }
+                { id: 'vertexDeleteBtn', tool: 'vertexDelete' },
+                { id: 'rotateBtn', tool: 'rotate' }
             ];
 
             toolButtons.forEach(({ id, tool }) => {
@@ -1752,6 +1899,9 @@ function deleteNote(noteId) {
                 }
 
                 // Mobile versions
+                // Skip deleteBtn for mobile as it has custom toggle logic in the bottom bar
+                if (id === 'deleteBtn') return;
+
                 const mobileBtn = document.getElementById('mobile' + id.charAt(0).toUpperCase() + id.slice(1));
                 if (mobileBtn) {
                     mobileBtn.addEventListener('click', function() {
@@ -1896,30 +2046,6 @@ function deleteNote(noteId) {
                 }
             }
             
-            // LiDAR toggle function
-            window.toggleLidarLayer = function() {
-                if (lidarLayer && map.hasLayer(lidarLayer)) {
-                    map.removeLayer(lidarLayer);
-                    console.log('Terrain layer removed');
-                    // When terrain is off and we're on satellite, show roads overlay
-                    if (currentBaseLayer === satelliteLayer && !roadsOverlayActive) {
-                        map.addLayer(roadsOverlay);
-                        roadsOverlayActive = true;
-                    }
-                } else {
-                    if (!lidarLayer) {
-                        lidarLayer = createLidarLayer();
-                    }
-                    map.addLayer(lidarLayer);
-                    console.log('Terrain layer added');
-                    // When terrain is on, also show roads overlay on top
-                    if (!roadsOverlayActive) {
-                        map.addLayer(roadsOverlay);
-                        roadsOverlayActive = true;
-                    }
-                }
-            };
-            
             // Roman Roads layer
             let romanRoadsLayer = null;
             let romanRoadsLoaded = false;
@@ -1942,7 +2068,7 @@ function deleteNote(noteId) {
                         style: function(feature) {
                             return {
                                 color: '#FF6B35',
-                                weight: 2,
+                                weight: 4,
                                 opacity: 0.8
                             };
                         },
@@ -1968,6 +2094,52 @@ function deleteNote(noteId) {
                             }
                         }
                     });
+
+                    // Add markers for Pleiades places (Forts, Stations, etc.)
+                    features.forEach(feature => {
+                        if (feature.pleiadesPlaces && Array.isArray(feature.pleiadesPlaces)) {
+                            feature.pleiadesPlaces.forEach(place => {
+                                if (place.geometry && place.geometry.coordinates) {
+                                    const latlng = [place.geometry.coordinates[1], place.geometry.coordinates[0]];
+                                    const type = (place.properties.type || 'unknown').toLowerCase();
+                                    let iconName = 'circle';
+                                    let color = '#FF6B35';
+                                    let size = 24;
+                                    
+                                    if (type.includes('fort') || type.includes('castellum')) { 
+                                        iconName = 'shield'; 
+                                        color = '#ef4444'; // Red for forts
+                                        size = 28;
+                                    } else if (type.includes('station') || type.includes('mansio')) { 
+                                        iconName = 'square'; 
+                                        color = '#f59e0b'; // Amber for stations
+                                    } else if (type.includes('settlement') || type.includes('city')) { 
+                                        iconName = 'home'; 
+                                        color = '#10b981'; // Green for settlements
+                                    } else if (type.includes('temple')) {
+                                        iconName = 'sun';
+                                        color = '#8b5cf6'; // Purple for temples
+                                    }
+                                    
+                                    const icon = L.divIcon({
+                                        className: 'custom-div-icon',
+                                        html: `<div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                                <i data-feather="${iconName}" style="width: ${size * 0.6}px; height: ${size * 0.6}px; color: white;"></i>
+                                               </div>`,
+                                        iconSize: [size, size],
+                                        iconAnchor: [size/2, size/2]
+                                    });
+                                    
+                                    const marker = L.marker(latlng, { icon: icon });
+                                    marker.bindPopup(`<strong>${place.properties.name}</strong><br><span style="text-transform: capitalize;">${type}</span>`);
+                                    romanRoadsLayer.addLayer(marker);
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Refresh icons
+                    setTimeout(() => { try { feather.replace(); } catch {} }, 500);
                     
                     romanRoadsLoaded = true;
                     console.log('Roman roads layer created successfully');
@@ -1998,27 +2170,6 @@ function deleteNote(noteId) {
             if (satelliteViewBtn) satelliteViewBtn.addEventListener('click', switchToSatelliteView);
             if (mobileStreetViewBtn) mobileStreetViewBtn.addEventListener('click', switchToStreetView);
             if (mobileSatelliteViewBtn) mobileSatelliteViewBtn.addEventListener('click', switchToSatelliteView);
-
-            // Pin Mode toggle
-            const pinModeBtn = document.getElementById('pinModeBtn');
-            const mobilePinModeBtn = document.getElementById('mobilePinModeBtn');
-
-            function togglePinMode() {
-                pinMode = !pinMode;
-                const text = `Pin Mode: ${pinMode ? 'ON' : 'OFF'}`;
-                if (pinModeBtn) {
-                    pinModeBtn.innerHTML = `<i data-feather="map-pin" class="w-4 h-4 mr-2"></i>${text}`;
-                    pinModeBtn.classList.toggle('active', pinMode);
-                }
-                if (mobilePinModeBtn) {
-                    mobilePinModeBtn.innerHTML = `<i data-feather="map-pin" class="w-5 h-5 mr-2"></i>${text}`;
-                    mobilePinModeBtn.classList.toggle('bg-blue-500', pinMode);
-                }
-                feather.replace();
-            }
-
-            if (pinModeBtn) pinModeBtn.addEventListener('click', togglePinMode);
-            if (mobilePinModeBtn) mobilePinModeBtn.addEventListener('click', togglePinMode);
 
             // Save buttons
             const saveBtn = document.getElementById('saveBtn');
@@ -2169,18 +2320,9 @@ function deleteNote(noteId) {
             }
             lastClickTime = currentTime;
 
-            // Handle double-click for line and polygon finishing
+            // Handle double-click for line finishing
             if (clickCount === 2 && currentTool === 'drawLine' && currentPath.length >= 2) {
                 // Finish the line
-                if (currentDrawingLayer) {
-                    finishDrawing(250);
-                }
-                clickCount = 0;
-                return;
-            }
-            
-            if (clickCount === 2 && currentTool === 'polygon' && currentPath.length >= 3) {
-                // Finish the polygon
                 if (currentDrawingLayer) {
                     finishDrawing(250);
                 }
@@ -2204,13 +2346,13 @@ function deleteNote(noteId) {
             if (currentTool === 'freehandLine') {
                 currentDrawingLayer = L.polyline(freehandPath, {
                     color: document.getElementById('strokeColor')?.value || '#3b82f6',
-                    weight: document.getElementById('lineWidthSlider')?.value || 3
+                    weight: document.getElementById('lineWidthSlider')?.value || 8
                 });
             } else {
                 currentDrawingLayer = L.polygon(freehandPath, {
                     color: document.getElementById('strokeColor')?.value || '#3b82f6',
                     fillColor: document.getElementById('fillColor')?.value || '#10b981',
-                    weight: document.getElementById('lineWidthSlider')?.value || 3,
+                    weight: document.getElementById('lineWidthSlider')?.value || 8,
                     fillOpacity: 0.3
                 });
             }
@@ -2218,6 +2360,56 @@ function deleteNote(noteId) {
         }
 
         // Handle single click based on the active tool
+        function isPointInPolygon(latlng, poly) {
+            const pt = map.latLngToLayerPoint(latlng);
+            const polyPoints = poly.getLatLngs();
+            let points = polyPoints;
+            if (points.length > 0 && Array.isArray(points[0])) {
+                points = points[0];
+            }
+            
+            const x = pt.x, y = pt.y;
+            let inside = false;
+            for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+                const p1 = map.latLngToLayerPoint(points[i]);
+                const p2 = map.latLngToLayerPoint(points[j]);
+                const xi = p1.x, yi = p1.y;
+                const xj = p2.x, yj = p2.y;
+                const intersect = ((yi > y) !== (yj > y)) &&
+                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function isPointNearPolyline(latlng, poly, toleranceInMeters = 50) {
+            const points = poly.getLatLngs();
+            if (points.length < 2) return false;
+            
+            // Handle nested arrays (MultiPolyline)
+            if (Array.isArray(points[0]) && typeof points[0][0] !== 'number' && 'lat' in points[0][0]) {
+                 // It's a MultiPolyline or similar structure
+                 for (let segment of points) {
+                     if (isPointNearLineSegment(latlng, segment, toleranceInMeters)) return true;
+                 }
+                 return false;
+            }
+
+            for (let i = 0; i < points.length - 1; i++) {
+                const p1 = points[i];
+                const p2 = points[i+1];
+                const dist = L.LineUtil.pointToSegmentDistance(
+                    map.latLngToLayerPoint(latlng),
+                    map.latLngToLayerPoint(p1),
+                    map.latLngToLayerPoint(p2)
+                );
+                // Convert pixel distance to approximate meters or just use pixel tolerance
+                // Using pixel tolerance is better for touch
+                if (dist < 20) return true; // 20px tolerance
+            }
+            return false;
+        }
+
         function handleSingleClick(e) {
                 if (deleteMode) {
         let clickedLayer = null;
@@ -2225,7 +2417,7 @@ function deleteNote(noteId) {
             // Improved shape detection for deletion
             if (layer instanceof L.Polygon || layer instanceof L.Circle) {
                 // For polygons and circles, use contains method or distance check
-                if (layer instanceof L.Polygon && layer.contains(e.latlng)) {
+                if (layer instanceof L.Polygon && isPointInPolygon(e.latlng, layer)) {
                     clickedLayer = layer;
                 } else if (layer instanceof L.Circle) {
                     // For circles, check if click is within radius
@@ -2235,7 +2427,13 @@ function deleteNote(noteId) {
                         clickedLayer = layer;
                     }
                 }
+            } else if (layer instanceof L.Polyline) {
+                // For polylines, check distance to segments
+                if (isPointNearPolyline(e.latlng, layer)) {
+                    clickedLayer = layer;
+                }
             } else if (layer.getBounds && layer.getBounds().contains(e.latlng)) {
+                // Fallback for other shapes (rectangles etc if not caught above)
                 clickedLayer = layer;
             } else if (layer.getLatLng && layer.getLatLng().distanceTo(e.latlng) < 100) {
                 clickedLayer = layer;
@@ -2247,7 +2445,8 @@ function deleteNote(noteId) {
             elementNotes.delete(msid);
             removeUserDrawing(msid);
             saveData();
-            setTimeout(() => { setActiveTool(null, null); }, 250);
+            // Keep delete mode active for multiple deletions
+            // setTimeout(() => { setActiveTool(null, null); }, 250);
         }
         return;
     }
@@ -2258,33 +2457,56 @@ function deleteNote(noteId) {
                 if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
                 currentDrawingLayer = L.polyline(currentPath, {
                     color: document.getElementById('strokeColor')?.value || '#3b82f6',
-                    weight: document.getElementById('lineWidthSlider')?.value || 3
+                    weight: document.getElementById('lineWidthSlider')?.value || 8
                 });
                 drawnItems.addLayer(currentDrawingLayer);
                 if (currentPath.length === 1) {
                     showCursorHelper('Click to add more points, double-click to finish');
                 }
-            } else if (currentTool === 'polygon') {
-                currentPath.push(e.latlng);
-                if (currentPath.length === 1) { 
-                    try { disableMapInteractions(); } catch {} 
-                    showCursorHelper('Click to add points, double-click to finish (minimum 3 points)');
+            } else if (currentTool === 'square') {
+                if (currentPath.length === 0) {
+                    // First click: set first corner
+                    currentPath.push(e.latlng);
+                    try { disableMapInteractions(); } catch {}
+                    showCursorHelper('Click again to set opposite corner');
+                    // Show a small marker at the first corner
+                    if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
+                    currentDrawingLayer = L.circleMarker(e.latlng, {
+                        radius: 5,
+                        color: '#3b82f6',
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.5
+                    });
+                    drawnItems.addLayer(currentDrawingLayer);
+                } else {
+                    // Second click: create rectangle from bounds
+                    const corner1 = currentPath[0];
+                    const corner2 = e.latlng;
+                    const bounds = L.latLngBounds(corner1, corner2);
+                    
+                    // Create polygon instead of rectangle to allow rotation
+                    const southWest = bounds.getSouthWest();
+                    const northEast = bounds.getNorthEast();
+                    const northWest = L.latLng(northEast.lat, southWest.lng);
+                    const southEast = L.latLng(southWest.lat, northEast.lng);
+                    const corners = [southWest, northWest, northEast, southEast];
+
+                    if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
+                    currentDrawingLayer = L.polygon(corners, {
+                        color: document.getElementById('strokeColor')?.value || '#3b82f6',
+                        fillColor: document.getElementById('fillColor')?.value || '#10b981',
+                        weight: document.getElementById('lineWidthSlider')?.value || 8,
+                        fillOpacity: 0.3
+                    });
+                    drawnItems.addLayer(currentDrawingLayer);
+                    finishDrawing(250);
                 }
-                if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
-                currentDrawingLayer = L.polygon(currentPath, {
-                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
-                    fillColor: document.getElementById('fillColor')?.value || '#10b981',
-                    weight: document.getElementById('lineWidthSlider')?.value || 3,
-                    fillOpacity: 0.3
-                });
-                drawnItems.addLayer(currentDrawingLayer);
-                // Don't auto-finish, wait for double-click (handled in double-click detection)
-            } else if (currentTool === 'star') {
+            } else if (currentTool === 'circle') {
                 if (currentPath.length === 0) {
                     // First click: set center
                     currentPath.push(e.latlng);
                     try { disableMapInteractions(); } catch {}
-                    showCursorHelper('Click again to set star size');
+                    showCursorHelper('Tap again to set radius');
                     // Show a small marker at the center
                     if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
                     currentDrawingLayer = L.circleMarker(e.latlng, {
@@ -2295,49 +2517,22 @@ function deleteNote(noteId) {
                     });
                     drawnItems.addLayer(currentDrawingLayer);
                 } else {
-                    // Second click: calculate radius and create star
+                    // Second click: set radius
                     const center = currentPath[0];
-                    const radius = map.distance(center, e.latlng) / 111320; // Convert meters to degrees
-                    const starPoints = createStarPoints(center, Math.max(radius, 0.001), 5);
+                    const radius = center.distanceTo(e.latlng);
                     
                     if (currentDrawingLayer) drawnItems.removeLayer(currentDrawingLayer);
-                    currentDrawingLayer = L.polygon(starPoints, {
+                    currentDrawingLayer = L.circle(center, {
+                        radius: radius,
                         color: document.getElementById('strokeColor')?.value || '#3b82f6',
                         fillColor: document.getElementById('fillColor')?.value || '#10b981',
-                        weight: document.getElementById('lineWidthSlider')?.value || 3,
+                        weight: document.getElementById('lineWidthSlider')?.value || 8,
                         fillOpacity: 0.3
                     });
                     drawnItems.addLayer(currentDrawingLayer);
                     finishDrawing(250);
                 }
-            } else if (currentTool === 'circle') {
-                try { disableMapInteractions(); } catch {}
-                currentDrawingLayer = L.circle(e.latlng, {
-                    radius: 1000,
-                    color: document.getElementById('strokeColor')?.value || '#3b82f6',
-                    fillColor: document.getElementById('fillColor')?.value || '#10b981',
-                    weight: document.getElementById('lineWidthSlider')?.value || 3,
-                    fillOpacity: 0.3
-                });
-                drawnItems.addLayer(currentDrawingLayer);
-                finishDrawing(250);
             }
-        }
-
-        // Create star points
-        function createStarPoints(center, radius, points) {
-            let coords = [];
-            let angle = Math.PI / points;
-            
-            for (let i = 0; i < points * 2; i++) {
-                let r = i % 2 === 0 ? radius : radius * 0.5;
-                let a = i * angle;
-                coords.push([
-                    center.lat + r * Math.cos(a),
-                    center.lng + r * Math.sin(a)
-                ]);
-            }
-            return coords;
         }
 
     // Enhanced touch/mouse drawing for mobile
@@ -2375,7 +2570,7 @@ function deleteNote(noteId) {
         // Touch events for mobile
     map.getContainer().addEventListener('touchstart', function(e) {
             // Disable interactions during touch for shapes as well
-            if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+            if (currentTool === 'drawLine' || currentTool === 'square' || currentTool === 'circle') {
                 try { disableMapInteractions(); } catch {}
                 const t = e.touches[0];
                 if (t) {
@@ -2403,7 +2598,7 @@ function deleteNote(noteId) {
                     freehandPath.push(latlng);
                     updateFreehandDrawing();
                     e.preventDefault();
-                } else if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+                } else if (currentTool === 'drawLine' || currentTool === 'square' || currentTool === 'circle') {
                     const t = e.touches[0];
                     if (t) {
                       const rect = map.getContainer().getBoundingClientRect();
@@ -2415,7 +2610,7 @@ function deleteNote(noteId) {
 
     map.getContainer().addEventListener('touchend', function(e) {
             // Re-enable after shape touch ends
-            if (currentTool === 'drawLine' || currentTool === 'polygon' || currentTool === 'star' || currentTool === 'circle') {
+            if (currentTool === 'drawLine' || currentTool === 'square' || currentTool === 'circle') {
                 setTimeout(() => { if (!isDrawing) try { enableMapInteractions(); } catch {} }, 100);
                 e.preventDefault();
             }
