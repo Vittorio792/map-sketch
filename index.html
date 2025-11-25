@@ -2048,7 +2048,47 @@ function deleteNote(noteId) {
             
             // Roman Roads layer
             let romanRoadsLayer = null;
+            let poiLayer = L.layerGroup();
+            let allPois = [];
             let romanRoadsLoaded = false;
+            let romanRoadsActive = false;
+
+            function updatePois() {
+                if (!romanRoadsActive) {
+                    poiLayer.clearLayers();
+                    return;
+                }
+
+                const zoom = map.getZoom();
+                const maxZoom = map.getMaxZoom(); // 19
+                // Load POIs when zoom is close to ground (4 zooms out from closest)
+                const threshold = maxZoom - 4; 
+
+                if (zoom < threshold) {
+                    poiLayer.clearLayers();
+                    return;
+                }
+
+                const bounds = map.getBounds();
+                poiLayer.clearLayers();
+
+                // Filter and add POIs that are within the current view
+                if (allPois.length > 0) {
+                    allPois.forEach(poi => {
+                        if (bounds.contains(poi.latlng)) {
+                            const marker = L.marker(poi.latlng, { icon: poi.icon });
+                            marker.bindPopup(poi.popupContent);
+                            poiLayer.addLayer(marker);
+                        }
+                    });
+                }
+                
+                if (!map.hasLayer(poiLayer)) {
+                    map.addLayer(poiLayer);
+                }
+                
+                setTimeout(() => { try { feather.replace(); } catch {} }, 100);
+            }
             
             // Load Roman roads data from NDJSON file
             async function loadRomanRoads() {
@@ -2095,7 +2135,7 @@ function deleteNote(noteId) {
                         }
                     });
 
-                    // Add markers for Pleiades places (Forts, Stations, etc.)
+                    // Process markers for Pleiades places (Forts, Stations, etc.)
                     features.forEach(feature => {
                         if (feature.pleiadesPlaces && Array.isArray(feature.pleiadesPlaces)) {
                             feature.pleiadesPlaces.forEach(place => {
@@ -2130,16 +2170,16 @@ function deleteNote(noteId) {
                                         iconAnchor: [size/2, size/2]
                                     });
                                     
-                                    const marker = L.marker(latlng, { icon: icon });
-                                    marker.bindPopup(`<strong>${place.properties.name}</strong><br><span style="text-transform: capitalize;">${type}</span>`);
-                                    romanRoadsLayer.addLayer(marker);
+                                    // Store POI data instead of adding to layer immediately
+                                    allPois.push({
+                                        latlng: latlng,
+                                        icon: icon,
+                                        popupContent: `<strong>${place.properties.name}</strong><br><span style="text-transform: capitalize;">${type}</span>`
+                                    });
                                 }
                             });
                         }
                     });
-                    
-                    // Refresh icons
-                    setTimeout(() => { try { feather.replace(); } catch {} }, 500);
                     
                     romanRoadsLoaded = true;
                     console.log('Roman roads layer created successfully');
@@ -2155,14 +2195,18 @@ function deleteNote(noteId) {
                     await loadRomanRoads();
                 }
                 
-                if (romanRoadsLayer) {
-                    if (map.hasLayer(romanRoadsLayer)) {
-                        map.removeLayer(romanRoadsLayer);
-                        console.log('Roman roads layer removed');
-                    } else {
-                        map.addLayer(romanRoadsLayer);
-                        console.log('Roman roads layer added');
-                    }
+                romanRoadsActive = !romanRoadsActive;
+                
+                if (romanRoadsActive) {
+                    if (romanRoadsLayer) map.addLayer(romanRoadsLayer);
+                    map.on('zoomend moveend', updatePois);
+                    updatePois(); // Initial check
+                    console.log('Roman roads layer added');
+                } else {
+                    if (romanRoadsLayer) map.removeLayer(romanRoadsLayer);
+                    map.removeLayer(poiLayer);
+                    map.off('zoomend moveend', updatePois);
+                    console.log('Roman roads layer removed');
                 }
             };
 
